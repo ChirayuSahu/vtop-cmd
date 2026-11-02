@@ -3,7 +3,10 @@ import { Arrow, B, IconPill, Logo } from "@/components/mocks";
 import { OnDevice, RequestQueue, YouSubmit } from "@/components/safety";
 import { FeatureShowcase } from "@/components/showcase";
 import { CountUp, Reveal, RevealText } from "@/components/motion";
+import { connection } from "next/server";
+import { Suspense } from "react";
 import { getLatestRelease, REPO_URL } from "@/lib/release";
+import { SITE_DESCRIPTION, SITE_NAME, siteUrl } from "@/lib/site";
 
 const safety = [
   { title: "Never acts for you", body: <>It can fill a form, but it <B>never submits</B>, uploads, registers, applies or pays. You do.</>, art: <YouSubmit /> },
@@ -35,14 +38,50 @@ function Downloads({ chromeUrl, firefoxUrl }: { chromeUrl: string; firefoxUrl: s
   );
 }
 
-export default async function Home() {
+// Rendered on the server for every request. The release lookup inside stays cached for an hour,
+// so visits don't each call GitHub.
+export default function Page() {
+  return (
+    <Suspense>
+      <Home />
+    </Suspense>
+  );
+}
+
+// Tells search engines this is a free browser extension, with its download links.
+function StructuredData({ version, chromeUrl, firefoxUrl }: { version: string | null; chromeUrl: string; firefoxUrl: string }) {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    name: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    url: siteUrl().href,
+    applicationCategory: "BrowserApplication",
+    operatingSystem: "Chrome, Brave, Firefox, Zen",
+    ...(version ? { softwareVersion: version } : {}),
+    downloadUrl: [chromeUrl, firefoxUrl],
+    offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
+    sameAs: [REPO_URL],
+  };
+  return (
+    <script
+      type="application/ld+json"
+      // JSON-LD must be inline; "<" is escaped so the data can't close the script tag.
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(data).replace(/</g, "\\u003c") }}
+    />
+  );
+}
+
+async function Home() {
+  await connection();
   const { version, chromeUrl, firefoxUrl } = await getLatestRelease();
 
   return (
     <div className="flex flex-1 flex-col overflow-x-clip">
+      <StructuredData version={version} chromeUrl={chromeUrl} firefoxUrl={firefoxUrl} />
       <div className="fixed inset-x-0 top-3 z-50 px-3">
-        <nav className="mx-auto flex max-w-7xl items-center justify-between rounded-2xl bg-ink/95 py-2 pr-2 pl-4 text-white shadow-lg backdrop-blur">
-          <a href="#" className="flex items-center gap-2 text-sm font-semibold">
+        <nav aria-label="Main" className="mx-auto flex max-w-7xl items-center justify-between rounded-2xl bg-ink/95 py-2 pr-2 pl-4 text-white shadow-lg backdrop-blur">
+          <a href="#" aria-label="VTOP Command, back to top" className="flex items-center gap-2 text-sm font-semibold">
             <Logo size={22} />
             VTOP Command
           </a>
@@ -318,7 +357,7 @@ export default async function Home() {
                 fixes are all welcome.
               </p>
             </div>
-            <nav className="grid grid-cols-2 gap-x-16 text-sm lg:order-1">
+            <nav aria-label="Footer" className="grid grid-cols-2 gap-x-16 text-sm lg:order-1">
               {[
                 {
                   title: "Product",
