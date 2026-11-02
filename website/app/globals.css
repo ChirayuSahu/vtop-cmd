@@ -60,6 +60,13 @@
   to { translate: -8% 0; }
 }
 
+/* Images can't be dragged out of the page. */
+img,
+svg {
+  -webkit-user-drag: none;
+  user-select: none;
+}
+
 /* Tailwind resets buttons to the default cursor; everything clickable shows a pointer. */
 button:not(:disabled),
 [role="button"],
