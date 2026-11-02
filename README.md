@@ -57,6 +57,8 @@ npm run source  # source archive for Firefox Add-ons review
 
 To try a local build, load `dist/vtop-command/` in Chrome (**Load unpacked**) or `dist/vtop-command-firefox/manifest.json` in Firefox (`about:debugging` → **Load Temporary Add-on…**).
 
+The homepage is a separate Next.js app in `website/`: run `npm ci && npm run dev` there.
+
 Tests use made-up data shaped like VTOP's markup; no account data is included.
 
 ### Releases

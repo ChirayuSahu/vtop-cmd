@@ -1,0 +1,2 @@
+# Keep the homepage out of the source archive submitted to Firefox Add-ons (npm run source).
+website/ export-ignore
