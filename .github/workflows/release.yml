@@ -1,4 +1,5 @@
-# Push a version tag on main to publish a GitHub release with the Chrome and Firefox packages.
+# Push a version tag on main to publish a GitHub release with the Chrome package.
+# The unsigned Firefox package stays a CI artifact; attach the Mozilla-signed .xpi to the release by hand.
 name: Release
 
 on:
@@ -55,7 +56,6 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             "dist/vtop-command-$VERSION.zip" \
-            "dist/vtop-command-firefox-$VERSION.zip" \
             --title "VTOP Command $VERSION" \
             --generate-notes \
             --verify-tag
