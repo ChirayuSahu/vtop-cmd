@@ -41,5 +41,5 @@ test('Chrome service worker loads shared session cache and toolbar listeners wit
  const context=vm.createContext({chrome});
  context.importScripts=(...files)=>{for(const file of files){loaded.push(file);vm.runInContext(fs.readFileSync(path.join(root,file),'utf8'),context);}};
  vm.runInContext(fs.readFileSync(path.join(root,'extension-background.js'),'utf8'),context);
- assert.deepEqual(loaded,['deadline-cache.js','extension-action.js']);assert.equal(listeners.length,2);
+ assert.deepEqual(loaded,['navigation.js','command-history.js','deadline-cache.js','extension-action.js']);assert.equal(listeners.length,3);
 });

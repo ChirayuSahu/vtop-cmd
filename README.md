@@ -50,6 +50,7 @@ Temporary add-ons are removed when Firefox closes. After updating the code, rebu
 Press **⌘K** on macOS or **Ctrl+K** on Windows/Linux on any VTOP page. You can also click the small launcher in the bottom-right corner, or the extension's toolbar icon.
 
 - **Search every page:** type a page name, a category or a common alias, such as `DA`, `CGPA`, `timetable`, `attendance` or `marks`. Typo-tolerant fuzzy matching also finds pages when a query has a small spelling error. Use ↑/↓ and Enter, or click a result.
+- **Personal ordering:** pages and commands you select in the command menu rise to the top based on frequency and recency. Each visit loses half its weight after seven days, so the order adapts as your habits change. All pages remain available; typed searches prioritize text relevance, using your history to break ties. History survives page reloads and browser restarts, and is shared across VTOP tabs in this browser profile.
 - **Always current:** the menu reads VTOP's own menu each time it opens, including collapsed sections, so new pages show up on their own. Repeated names, such as regular and arrear exam schedules, are labelled by their section.
 - **Opens pages VTOP's way:** choosing a page clicks VTOP's own menu link, exactly as if you had clicked it.
 - **Commands:** **Home**, **Dark mode**, **Choose default semester** and **CGPA calculator** are all in the menu.
@@ -199,7 +200,8 @@ Everything stays in your browser on this device.
 | Form presets | WebExtension `storage.local` | You delete the preset or remove the extension |
 | CGPA grade predictions | WebExtension `storage.local`, per student | You change them or remove the extension |
 | Pending-assignment cache | Account-scoped background `storage.session` (memory only) | 1–5 hours, an upload on that course, or closing the browser |
-| Recent menu choices, attendance figures, PDFs being viewed | The open tab's memory | You close or leave the page |
+| Command usage (up to 300 route/command IDs, weighted visit counts and last-used timestamps; shared per browser profile) | WebExtension `storage.local` | Older entries are evicted at the limit, or you remove the extension |
+| Attendance figures, PDFs being viewed | The open tab's memory | You close or leave the page |
 
 Your password, marks history and attendance are never saved by the extension.
 
@@ -234,7 +236,8 @@ Tests use made-up data shaped like VTOP's real markup. No account data is includ
 | `brand.js` | Shared logo, colours and platform shortcut |
 | `combobox.js` | Searchable dropdown used in the extension's own windows |
 | `search-select.js` | Type-to-search for Late Hour and Leave Request dropdowns |
-| `navigation.js` | Menu discovery, categories, aliases and search ranking |
+| `navigation.js` | Menu discovery, categories, aliases and usage-weighted search ranking |
+| `command-history.js` | Serialized background writer for on-device command usage; no server or database dependency |
 | `semesters.js` | Semester dropdown discovery and matching; transactional-page guard |
 | `content.js` | Command menu, launcher, preferences and default-semester selection |
 | `dark.css`, `dark-readability.js` | Dark theme and contrast correction |

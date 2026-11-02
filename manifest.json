@@ -87,6 +87,8 @@
   },
   "background": {
     "scripts": [
+      "navigation.js",
+      "command-history.js",
       "deadline-cache.js",
       "extension-action.js"
     ]
