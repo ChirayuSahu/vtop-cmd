@@ -20,10 +20,12 @@ export const SITE_KEYWORDS = [
   "Firefox add-on",
 ];
 
-// The public address: SITE_URL when set, Vercel's production URL when deployed there,
+const PRODUCTION_URL = "https://vtop-cmd.chirayusahu.com/";
+
+// The public address: SITE_URL when set, the production domain in production builds,
 // and localhost in development.
 export function siteUrl() {
   if (process.env.SITE_URL) return new URL(process.env.SITE_URL);
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return new URL(`https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`);
+  if (process.env.NODE_ENV === "production") return new URL(PRODUCTION_URL);
   return new URL(`http://localhost:${process.env.PORT ?? 3000}`);
 }
