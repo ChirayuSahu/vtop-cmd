@@ -46,13 +46,14 @@ for browser in browsers:
     archive = root / 'dist' / f"{package_name}-{manifest['version']}.zip"
     with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as bundle:
         for name in files:
-            bundle.write(output / name, f'{package_name}/{name}')
+            bundle.write(output / name, name)
         for directory in [vendor, output / 'icons']:
             for path in directory.rglob('*'):
                 if path.is_file():
-                    bundle.write(path, package_name + '/' + path.relative_to(output).as_posix())
+                    bundle.write(path, path.relative_to(output).as_posix())
     with zipfile.ZipFile(archive) as bundle:
         assert bundle.testzip() is None
+        assert 'manifest.json' in bundle.namelist(), 'Package manifest must be at the archive root'
         for name in bundle.namelist():
             parts = Path(name).parts
             assert not any(part in {'.git', 'node_modules', 'dist'} for part in parts), name

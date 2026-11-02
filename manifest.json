@@ -93,7 +93,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "vtop-command@sid-1524",
+      "id": "{da7a1fc0-9e4b-49e7-9e37-bb4fb5c02cd1}",
       "strict_min_version": "128.0",
       "data_collection_permissions": {
         "required": [

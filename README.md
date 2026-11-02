@@ -25,14 +25,9 @@ Run `npm run build`, open `chrome://extensions` (or `brave://extensions`), enabl
 
 ### Firefox and Zen Browser
 
-#### Install the provided XPI
+#### Install from Firefox Add-ons
 
-1. Open Firefox's **Add-ons and themes** page (`about:addons`).
-2. Open the gear menu and choose **Install Add-on From File…**.
-3. Select the repository's top-level `vtop_command-1.2.0.xpi` and confirm the installation.
-4. Open VTOP and sign in as usual.
-
-The provided XPI is signed and installs as a regular add-on, so it remains installed after Firefox closes.
+After the add-on is approved and published, install it from its Firefox Add-ons listing. Published add-ons are signed by Mozilla and remain installed after Firefox closes.
 
 #### Temporary install from source
 
@@ -44,9 +39,9 @@ The top-level manifest and its tracked files are a complete Firefox extension. T
 To create a distributable ZIP instead, build the Firefox package:
    ```bash
    npm ci
-   npm run build
+   npm run build -- --browser firefox
    ```
-This creates `dist/vtop-command/` and `dist/vtop-command-1.2.0.zip` for Chrome/Brave, plus `dist/vtop-command-firefox/` and `dist/vtop-command-firefox-1.2.0.zip` for Firefox/Zen. To build only one browser, use `npm run build -- --browser chrome` or `npm run build -- --browser firefox`. The build creates ZIP packages, not a signed XPI; use the provided XPI above for a regular Firefox installation.
+This creates `dist/vtop-command-firefox/` and `dist/vtop-command-firefox-1.2.0.zip`. The ZIP has `manifest.json` at its root and contains the complete Firefox extension. It is not itself a signed add-on.
 
 After updating the code, rebuild the relevant package, remove or reload the old add-on, and refresh VTOP.
 
@@ -215,6 +210,27 @@ Your password, marks history and attendance are never saved by the extension.
 ---
 
 ## Development
+
+### Build environment and reproducible Firefox package
+
+The build is supported on Windows, macOS and Linux. It requires:
+
+- Node.js 24.15.0 or newer (Node.js 24.16.0 verified).
+- npm 11.x (npm 11.13.0 verified; included with Node.js).
+- Python 3.12 or newer (the CI build uses Python 3.12). The build uses only Python's standard library.
+
+Install Node.js from [nodejs.org](https://nodejs.org/) and Python from [python.org](https://www.python.org/downloads/), then run these commands from the source directory:
+
+```bash
+npm ci
+npm run check
+npm test
+npm run build -- --browser firefox
+```
+
+The build script (`scripts/build.cjs` and `scripts/build.py`) copies the Firefox runtime files, vendor assets and icons into `dist/vtop-command-firefox/`, then creates `dist/vtop-command-firefox-1.2.0.zip`. The package ZIP has `manifest.json` at its root. Extension source files are used as written; the only bundled third-party code is under `vendor/` and is distributed with its license/notices. The build does not transpile, concatenate or minify extension source.
+
+To load the exact built extension locally, open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on…**, and select `dist/vtop-command-firefox/manifest.json`.
 
 ```bash
 npm ci
