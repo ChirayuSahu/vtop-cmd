@@ -32,7 +32,7 @@ test('PDF headers within the first 1024 bytes are recognized',async()=>{
  w.open('/vtop/download/course.pdf');await pause();
  assert.ok(messages.some(message=>message.kind==='ready'));assert.equal(downloads.length,0);dom.window.close();
 });
-test('PPTX downloads are previewed, while legacy PPT stays downloadable with a clear unsupported type',async()=>{
+test('PPTX and legacy PPT downloads are both previewed',async()=>{
  const pptx=bridge({body:'PK\u0003\u0004presentation',type:'application/vnd.openxmlformats-officedocument.presentationml.presentation',disposition:null});
  pptx.w.open('/vtop/download/Week%201.pptx');await pause();
  const ready=pptx.messages.find(message=>message.kind==='ready');
@@ -40,7 +40,17 @@ test('PPTX downloads are previewed, while legacy PPT stays downloadable with a c
  const legacy=bridge({body:'legacy presentation',type:'application/vnd.ms-powerpoint',disposition:null});
  legacy.w.open('/vtop/download/Week%201.ppt');await pause();
  const old=legacy.messages.find(message=>message.kind==='ready');
- assert.equal(old.documentType,'unsupported');assert.equal(old.filename,'Week 1.ppt');legacy.dom.window.close();
+ assert.equal(old.documentType,'ppt');assert.equal(old.filename,'Week 1.ppt');legacy.dom.window.close();
+});
+test('DOCX and legacy DOC downloads are previewed locally',async()=>{
+ const docx=bridge({body:'PK\u0003\u0004word document',type:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',disposition:null});
+ docx.w.open('/vtop/download/assignment.docx');await pause();
+ const modern=docx.messages.find(message=>message.kind==='ready');
+ assert.equal(modern.documentType,'docx');assert.equal(modern.filename,'assignment.docx');assert.equal(docx.downloads.length,0);docx.dom.window.close();
+ const legacy=bridge({body:'legacy word document',type:'application/msword',disposition:null});
+ legacy.w.open('/vtop/download/notes.doc');await pause();
+ const old=legacy.messages.find(message=>message.kind==='ready');
+ assert.equal(old.documentType,'doc');assert.equal(old.filename,'notes.doc');assert.equal(legacy.downloads.length,0);legacy.dom.window.close();
 });
 test('external URLs and ordinary VTOP navigation retain native browser behavior',async()=>{
  const {dom,w,calls,opens}=bridge();w.open('https://example.com/file.pdf');w.open('/vtop/academics/home');
@@ -68,10 +78,15 @@ test('PDF resources are bundled locally and MAIN interception is scoped only to 
  const main=manifest.content_scripts.find(script=>script.world==='MAIN');assert.deepEqual(main.matches,['https://vtop.vit.ac.in/vtop/*']);assert.equal(main.run_at,'document_start');
  assert.deepEqual(manifest.permissions,['storage']);
  const viewerResources=manifest.web_accessible_resources.find(resource=>resource.resources.includes('pdf-viewer.html')).resources;
- for(const file of ['pdf-viewer.html','pdf-viewer.css','pdf-viewer.mjs','pptx-viewer.mjs','brand.js','vendor/pdf.mjs','vendor/pdf.worker.mjs','vendor/pptx-renderer.browser.mjs']) {
+ for(const file of ['pdf-viewer.html','pdf-viewer.css','pdf-viewer.mjs','pptx-viewer.mjs','ppt-viewer.mjs','word-viewer.mjs','brand.js','vendor/pdf.mjs','vendor/pdf.worker.mjs','vendor/pptx-renderer.browser.mjs','vendor/pptjs/pptjs.mjs']) {
   assert.ok(fs.existsSync(__dirname+'/../'+file));
   assert.ok(viewerResources.includes(file));
  }
+ for(const file of ['vendor/docx/docx-preview.min.mjs','vendor/docx/jszip.min.mjs','vendor/msdoc/purify.es.mjs','vendor/msdoc/modules/msdoc/parser.js','vendor/msdoc/modules/render/html.js']) assert.ok(fs.existsSync(__dirname+'/../'+file));
+ assert.ok(viewerResources.includes('vendor/docx/*.mjs'));
+ assert.ok(viewerResources.includes('vendor/msdoc/*'));
+ assert.ok(viewerResources.includes('vendor/msdoc/modules/msdoc/*'));
+ assert.ok(viewerResources.includes('vendor/msdoc/modules/render/*'));
  assert.ok(viewerResources.includes('vendor/cmaps/*'));
  assert.ok(viewerResources.includes('vendor/standard_fonts/*'));
  assert.ok(!fs.readFileSync(__dirname+'/../pdf-viewer.html','utf8').includes('https://'));
@@ -225,7 +240,7 @@ test('preview shares the command menu palette and follows the saved dark mode, p
  assert.match(shadow.querySelector('iframe').src,/\?theme=dark&\btype=pdf#/);
  listeners.forEach(listener=>listener({darkMode:{newValue:false}},'local'));assert.equal(host.hasAttribute('data-dark'),false);dom.window.close();
 });
-test('PPTX preview routes bytes to the presentation viewer and legacy PPT offers download without a frame',async()=>{
+test('PPTX and legacy PPT previews route bytes to their presentation viewers',async()=>{
  const pptx=previewWindow(),presentation=new TextEncoder().encode('PK\u0003\u0004slides').buffer;
  pptx.send('pdf-1-1','loading');pptx.send('pdf-1-1','ready',{bytes:presentation,filename:'slides.pptx',documentType:'pptx'});await pause();
  assert.match(pptx.shadow.querySelector('iframe').src,/type=pptx#/);
@@ -233,9 +248,21 @@ test('PPTX preview routes bytes to the presentation viewer and legacy PPT offers
  const legacy=previewWindow();
  legacy.send('pdf-1-1','loading');legacy.send('pdf-1-1','ready',{bytes:new TextEncoder().encode('old powerpoint').buffer,filename:'slides.ppt',documentType:'unsupported'});
  assert.equal(legacy.shadow.querySelector('iframe'),null);
- assert.match(legacy.shadow.querySelector('.status').textContent,/Legacy \.ppt files cannot be previewed/);
+ assert.match(legacy.shadow.querySelector('.status').textContent,/file type cannot be previewed/);
  assert.equal(legacy.shadow.querySelector('.download').download,'slides.ppt');
  legacy.dom.window.close();
+ const supported=previewWindow();
+ supported.send('pdf-1-1','loading');supported.send('pdf-1-1','ready',{bytes:new TextEncoder().encode('old powerpoint').buffer,filename:'slides.ppt',documentType:'ppt'});
+ assert.match(supported.shadow.querySelector('iframe').src,/type=ppt#/);
+ supported.dom.window.close();
+});
+test('DOCX and legacy DOC previews route to the Word viewer',async()=>{
+ for(const documentType of ['docx','doc']){
+  const word=previewWindow();
+  word.send('pdf-1-1','loading');word.send('pdf-1-1','ready',{bytes:new TextEncoder().encode('word document').buffer,filename:`notes.${documentType}`,documentType});
+  assert.match(word.shadow.querySelector('iframe').src,new RegExp(`type=${documentType}#`));
+  word.dom.window.close();
+ }
 });
 test('Escape and Cmd/Ctrl+K forwarded from the viewer close the preview and reopen the command menu',async()=>{
  const {dom,w,shadow,send}=previewWindow();await pause();const keys=[];

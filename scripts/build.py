@@ -8,7 +8,7 @@ import argparse
 from browser_manifest import browser_manifest
 
 root = Path(__file__).resolve().parent.parent
-files = ['captcha-solver.js', 'captcha.js', 'captcha-model.json', 'licenses/vtop-captcha-solver.txt', 'extension-background.js', 'deadline-cache.js', 'deadline-cache-client.js', 'manifest.json', 'brand.js', 'combobox.js', 'search-select.js', 'form-presets.js', 'navigation.js', 'semesters.js', 'enhancements.js', 'content.js', 'dark-readability.js', 'cgpa.js', 'cgpa-ui.js', 'page-enhancements.js', 'page-actions.js', 'page-runtime.js', 'pdf-bridge.js', 'pdf-preview.js', 'extension-action.js', 'pdf-viewer.html', 'pdf-viewer.css', 'pdf-viewer.mjs', 'pptx-viewer.mjs', 'dark.css', 'README.md', 'docs/dark-mode-audit.md']
+files = ['captcha-solver.js', 'captcha.js', 'captcha-model.json', 'licenses/vtop-captcha-solver.txt', 'extension-background.js', 'deadline-cache.js', 'deadline-cache-client.js', 'manifest.json', 'brand.js', 'combobox.js', 'search-select.js', 'form-presets.js', 'navigation.js', 'semesters.js', 'enhancements.js', 'content.js', 'dark-readability.js', 'cgpa.js', 'cgpa-ui.js', 'page-enhancements.js', 'page-actions.js', 'page-runtime.js', 'pdf-bridge.js', 'pdf-preview.js', 'extension-action.js', 'pdf-viewer.html', 'pdf-viewer.css', 'pdf-viewer.mjs', 'pptx-viewer.mjs', 'ppt-viewer.mjs', 'word-viewer.mjs', 'dark.css', 'README.md', 'docs/dark-mode-audit.md']
 source_manifest = json.loads((root / 'manifest.json').read_text())
 assert source_manifest['manifest_version'] == 3
 assert source_manifest.get('background') == {'scripts': ['deadline-cache.js', 'extension-action.js']}

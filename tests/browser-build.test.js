@@ -24,9 +24,12 @@ test('Chrome manifest uses a service worker and preserves shared document viewer
  }
  assert.deepEqual(chromePolicy,{...firefoxPolicy,'worker-src':["'self'"]});
  assert.match(fs.readFileSync(path.join(root,'pdf-viewer.mjs'),'utf8'),/workerSrc=new URL\('\.\/vendor\/pdf\.worker\.mjs',import\.meta\.url\)/);
- for(const asset of ['pptx-viewer.mjs','vendor/pptx-renderer.browser.mjs','pdf-viewer.mjs']){
+ for(const asset of ['pptx-viewer.mjs','ppt-viewer.mjs','word-viewer.mjs','vendor/pptx-renderer.browser.mjs','vendor/pptjs/pptjs.mjs','pdf-viewer.mjs']){
   assert.ok(chrome.web_accessible_resources[0].resources.includes(asset));assert.ok(fs.existsSync(path.join(root,asset)));
  }
+ for(const asset of ['vendor/docx/docx-preview.min.mjs','vendor/docx/jszip.min.mjs','vendor/msdoc/purify.es.mjs','vendor/msdoc/modules/msdoc/parser.js']) assert.ok(fs.existsSync(path.join(root,asset)));
+ assert.ok(chrome.web_accessible_resources[0].resources.includes('vendor/docx/*.mjs'));
+ assert.ok(chrome.web_accessible_resources[0].resources.includes('vendor/msdoc/modules/msdoc/*'));
  assert.ok(chrome.content_scripts[0].js.includes('deadline-cache-client.js'));
  for(const manifest of [chrome,firefox]){
   const scripts=manifest.content_scripts[0].js;

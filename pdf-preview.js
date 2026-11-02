@@ -82,11 +82,11 @@
       if(id!==activeId || !dialog.open)return;
       filename=String(message.filename||'document.pdf').replace(/[\\/\x00-\x1f]/g,'_').slice(0,180);
       documentType=message.documentType || (new TextDecoder().decode(data.slice(0,5))==='%PDF-'?'pdf':'unsupported');
-      const mime=documentType==='pptx'?'application/vnd.openxmlformats-officedocument.presentationml.presentation':documentType==='unsupported'?'application/vnd.ms-powerpoint':'application/pdf';
+      const mime=documentType==='pptx'?'application/vnd.openxmlformats-officedocument.presentationml.presentation':documentType==='ppt'||documentType==='unsupported'?'application/vnd.ms-powerpoint':documentType==='docx'?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':documentType==='doc'?'application/msword':'application/pdf';
       bytes=data;blobURL=URL.createObjectURL(new Blob([data],{type:mime}));
       download.href=blobURL;download.download=filename;download.hidden=false;
       shadow.querySelector('h2').textContent=filename;
-      if(documentType==='unsupported'){status.textContent='Legacy .ppt files cannot be previewed here. Use Download to open this presentation in a compatible app.';return;}
+      if(documentType==='unsupported'){status.textContent='This file type cannot be previewed here. Use Download to open it in a compatible app.';return;}
       status.textContent='';mount(documentType);
     }catch{if(id===activeId)status.textContent='Unable to open this document. Retry the link, or Shift-click it to use the original download.';}
   });

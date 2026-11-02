@@ -38,7 +38,7 @@
     try {
       const url = new URL(value, document.baseURI);
       return url.origin === location.origin && url.pathname.startsWith('/vtop/') &&
-        /\.(?:pdf|pptx?)$|download|dwnld|curriculdown|viewfile/i.test(decodeURIComponent(url.pathname));
+        /\.(?:pdf|pptx?|docx?)$|download|dwnld|curriculdown|viewfile/i.test(decodeURIComponent(url.pathname));
     } catch { return false; }
   }
   function filename(header, fallback = 'document.pdf') {
@@ -72,12 +72,15 @@
       const name = filename(contentDisposition, suggestedName || pathName || (isPdf ? 'document.pdf' : 'download'));
       const isPptx = /application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation/i.test(contentType) || /\.pptx$/i.test(name);
       const isLegacyPpt = /application\/vnd\.ms-powerpoint/i.test(contentType) || /\.ppt$/i.test(name);
+      const isDocx = /application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document/i.test(contentType) || /\.docx$/i.test(name);
+      const isLegacyDoc = /application\/msword/i.test(contentType) || /\.doc$/i.test(name);
       if (!isPdf) {
         if (fallback && /text\/html/i.test(contentType)) { emit('not-pdf',id); fallback(); return; }
         if (/text\/html|application\/json/i.test(contentType)) throw new Error('VTOP returned a page instead of a document. Sign in again and retry.');
-        if (isPptx || isLegacyPpt) {
+        if (isPptx || isLegacyPpt || isDocx || isLegacyDoc) {
           const bytes = await blob.arrayBuffer();
-          emit('ready',id,{bytes,filename:name,documentType:isPptx?'pptx':'unsupported'});
+          const documentType = isPptx ? 'pptx' : isLegacyPpt ? 'ppt' : isDocx ? 'docx' : 'doc';
+          emit('ready',id,{bytes,filename:name,documentType});
           return;
         }
         download(blob,name); emit('not-pdf',id); return;

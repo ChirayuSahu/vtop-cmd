@@ -21,7 +21,7 @@ The extension isn't published in an add-on store yet, so you load it yourself. T
 
 ### Chrome and Brave
 
-Run `npm run build`, open `chrome://extensions` (or `brave://extensions`), enable **Developer mode**, select **Load unpacked**, and choose `dist/vtop-command/`. This package includes local PDF and `.pptx` previews and the Download option.
+Run `npm run build`, open `chrome://extensions` (or `brave://extensions`), enable **Developer mode**, select **Load unpacked**, and choose `dist/vtop-command/`. This package includes local PDF, Word and PowerPoint previews and the Download option.
 
 ### Firefox and Zen Browser
 
@@ -142,14 +142,14 @@ Every dropdown in the extension's own windows (the semester picker, the CGPA cal
 
 ### Document previews
 
-VTOP's PDF and `.pptx` downloads, such as course materials and presentations, open in a built-in viewer instead of downloading straight away.
+VTOP's PDF, Word (`.doc` and `.docx`) and PowerPoint (`.ppt` and `.pptx`) downloads, such as course materials and presentations, open in a built-in viewer instead of downloading straight away.
 
 - **Reading:** scroll through all pages, or type a page number to jump to it.
 - **Zoom:** use ⌘/Ctrl + scroll, a trackpad pinch, ⌘/Ctrl + `+`/`−`, or the toolbar. ⌘/Ctrl + `0` or **Fit width** resets it.
 - **Download** saves the original file whenever you want it.
 - **Closing:** **Esc**, **Close** or a click outside closes the viewer.
 - **Password-protected PDFs** ask for the password inside the viewer.
-- **Presentations:** `.pptx` slides are rendered locally. Legacy `.ppt` files cannot be previewed, but remain available through **Download**.
+- **Documents and presentations:** `.docx` and legacy `.doc` documents, plus `.pptx` and legacy `.ppt` presentations, are rendered locally. Download always saves the original format.
 - **Bypass:** Shift-click a link to download it the normal way. Files that aren't supported preview types download as usual.
 
 The viewers and renderers are bundled with the extension, so documents are never sent to an outside service.
@@ -270,6 +270,6 @@ Tests use made-up data shaped like VTOP's real markup. No account data is includ
 | `cgpa.js`, `cgpa-ui.js` | Grade History and Time Table readers, CGPA maths and calculator |
 | `form-presets.js` | Form presets and their editor |
 | `page-runtime.js`, `page-actions.js` | Waits for VTOP to be idle and runs automatic actions one at a time |
-| `pdf-bridge.js`, `pdf-preview.js`, `pdf-viewer.*` | PDF download interception, preview window and PDF.js viewer |
+| `pdf-bridge.js`, `pdf-preview.js`, `pdf-viewer.*`, `ppt-viewer.mjs`, `word-viewer.mjs` | Document download interception and local PDF, Word and presentation viewers |
 | `extension-action.js` | Toolbar button |
 | `deadline-cache.js`, `deadline-cache-client.js` | Account-scoped session-cache relay through the background script, used by both browsers (Firefox content scripts can't reach session storage directly) |
