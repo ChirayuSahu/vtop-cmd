@@ -8,6 +8,7 @@ test('extension documents prohibit remote network, executable code, and embedded
  const rules=Object.fromEntries(manifest.content_security_policy.extension_pages.split(';').filter(s=>s.trim()).map(s=>{const [key,...values]=s.trim().split(/\s+/);return[key,values];}));
  assert.deepEqual(rules['connect-src'],["'self'",'blob:','data:']);
  assert.deepEqual(rules['script-src'],["'self'"]);
+ assert.deepEqual(rules['worker-src'],["'self'"]);
  assert.deepEqual(rules['object-src'],["'none'"]);
  assert.deepEqual(rules['base-uri'],["'none'"]);
  assert.deepEqual(manifest.host_permissions,['https://vtop.vit.ac.in/*']);

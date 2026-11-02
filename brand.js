@@ -9,11 +9,25 @@
   const font = '14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif';
   const nav = root.navigator || {};
   const mac = /Mac|iPhone|iPad/i.test(nav.userAgentData?.platform || nav.platform || '');
-  // ⌘K on macOS, Ctrl+K on Windows/Linux (the Windows key belongs to the OS). `code` covers non-Latin layouts.
+  // ⌘K on macOS, Ctrl+K on Windows/Linux (the Windows key belongs to the OS).
+  const defaultBinding = { key: 'k', code: 'KeyK', shiftKey: false, altKey: false };
+  let binding = { ...defaultBinding };
   const shortcut = {
-    mac, label: mac ? '⌘ K' : 'Ctrl K', modifier: mac ? '⌘' : 'Ctrl',
+    mac,
+    get label() {
+      return [mac ? '⌘' : 'Ctrl', ...(binding.shiftKey ? ['Shift'] : []), ...(binding.altKey ? ['Alt'] : []), binding.key.toUpperCase()].join(' ');
+    },
+    set(value) {
+      if (!value || typeof value.key !== 'string' || typeof value.code !== 'string' ||
+          !/^(?:[a-z0-9]|f(?:[1-9]|1[0-2]))$/i.test(value.key) ||
+          !/^(?:Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/.test(value.code)) return false;
+      binding = { key: value.key.toLowerCase(), code: value.code, shiftKey: value.shiftKey === true, altKey: value.altKey === true };
+      return true;
+    },
     matches: event => (mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey) &&
-      !event.altKey && !event.shiftKey && (event.key?.toLowerCase() === 'k' || event.code === 'KeyK')
+      event.altKey === binding.altKey && event.shiftKey === binding.shiftKey &&
+      (event.key?.toLowerCase() === binding.key || event.code === binding.code),
+    eventInit: () => ({ key: binding.key, code: binding.code, metaKey: mac, ctrlKey: !mac, shiftKey: binding.shiftKey, altKey: binding.altKey })
   };
   function setMarkup(target, markup) {
     const svg = target.namespaceURI === 'http://www.w3.org/2000/svg';

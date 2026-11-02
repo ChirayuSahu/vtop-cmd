@@ -1,6 +1,6 @@
 # VTOP Command
 
-A browser extension for VIT's VTOP portal. It adds a ⌘K / Ctrl+K command menu, a dark mode, and helpers for attendance, assignments, marks and CGPA.
+A browser extension for VIT's VTOP portal. It adds a customizable keyboard shortcut for the command menu (⌘K / Ctrl+K by default), a dark mode, and helpers for attendance, assignments, marks and CGPA.
 
 It runs only on `vtop.vit.ac.in/vtop/`, talks to no other server, and never submits anything on your behalf.
 
@@ -22,7 +22,7 @@ Download the files from the [latest release](https://github.com/ChirayuSahu/vtop
 
 ## Features
 
-- **Command menu:** press ⌘K / Ctrl+K on any VTOP page to search and open any page, with aliases (`DA`, `CGPA`, `marks`) and typo-tolerant matching.
+- **Command menu:** press ⌘K / Ctrl+K by default on any VTOP page to search and open any page, with aliases (`DA`, `CGPA`, `marks`) and typo-tolerant matching. Use **Shortcut** in the menu to record another Ctrl/Command shortcut; Shift and Alt are optional.
 - **Dark mode:** covers the whole portal and keeps text readable. Images, charts and documents keep their colours.
 - **Default semester:** choose your semester once and it's selected automatically when a page first loads. Registration, payment and similar pages are never touched.
 - **Attendance:** shows how many classes you need to reach 75%, or how many you can still miss.

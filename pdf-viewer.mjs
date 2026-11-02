@@ -13,6 +13,10 @@ try{
  chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.darkMode)theme(changes.darkMode.newValue===true);});
 }catch{/* Tests and previews run without the extension runtime. */}
 const menuKey=globalThis.VtopBrand?.shortcut||{modifier:'Ctrl',matches:event=>(event.ctrlKey||event.metaKey)&&!event.altKey&&!event.shiftKey&&(event.key?.toLowerCase()==='k'||event.code==='KeyK')};
+try{
+ chrome.storage.local.get('commandShortcut').then(settings=>{if(settings.commandShortcut)menuKey.set?.(settings.commandShortcut);}).catch(()=>{});
+ chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.commandShortcut)menuKey.set?.(changes.commandShortcut.newValue);});
+}catch{/* Tests and previews run without the extension runtime. */}
 let pdf,pageNumber=1,scale=1,received=false,autoFit=true,lastFitWidth=0,generation=0,running=false,scrollFrame,refreshTimer;
 function status(text){$('#status').textContent=text;}
 function notify(type,extra={}){parent.postMessage({type,nonce,...extra},parentOrigin);}
@@ -110,7 +114,7 @@ container.addEventListener('wheel',event=>{
 window.addEventListener('keydown',event=>{
  // Focus inside this frame hides keys from VTOP, so hand Escape and Cmd/Ctrl+K to the preview shell.
  if(event.key==='Escape'&&!event.isComposing){event.preventDefault();notify('viewer-key',{key:'Escape'});return;}
- if(menuKey.matches(event)){event.preventDefault();notify('viewer-key',{key:'k'});return;}
+ if(menuKey.matches(event)){event.preventDefault();notify('viewer-key',{key:event.key,code:event.code,ctrlKey:event.ctrlKey,metaKey:event.metaKey,altKey:event.altKey,shiftKey:event.shiftKey});return;}
  if(!pdf||!(event.ctrlKey||event.metaKey)||event.altKey)return;
  if(['+','='].includes(event.key)){event.preventDefault();zoom(1.2);}
  else if(['-','_'].includes(event.key)){event.preventDefault();zoom(1/1.2);}

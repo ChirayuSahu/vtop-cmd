@@ -63,8 +63,9 @@
       else if(type==='viewer-loaded'||type==='viewer-error'){clearTimeout(watchdog);if(type==='viewer-loaded')status.textContent='';}
       // Keys pressed inside the viewer frame never reach this document; the viewer forwards them.
       else if(type==='viewer-key'&&event.data.key==='Escape')close();
-      else if(type==='viewer-key'&&event.data.key==='k'){
-        close();document.dispatchEvent(new KeyboardEvent('keydown',{key:'k',code:'KeyK',metaKey:shortcut.mac,ctrlKey:!shortcut.mac,bubbles:true,cancelable:true}));
+      else if(type==='viewer-key'&&event.data.key!=='Escape'){
+        const forwarded=Object.hasOwn(event.data,'ctrlKey')?event.data:shortcut.eventInit();
+        close();document.dispatchEvent(new KeyboardEvent('keydown',{key:forwarded.key,code:forwarded.code||'',metaKey:forwarded.metaKey===true,ctrlKey:forwarded.ctrlKey===true,altKey:forwarded.altKey===true,shiftKey:forwarded.shiftKey===true,bubbles:true,cancelable:true}));
       }
       return;
     }

@@ -22,8 +22,9 @@
       dialog{padding:0;margin:12vh auto 0;width:min(620px,calc(100vw - 28px));max-height:78vh;border:1px solid var(--line);border-radius:20px;background:var(--surface);color:var(--text);box-shadow:0 24px 100px #0005;overflow:hidden}
       dialog::backdrop{background:#10182788;backdrop-filter:blur(5px)}
       header{display:flex;gap:12px;align-items:center;padding:20px 22px 12px}.brand{font-size:11px;font-weight:750;letter-spacing:2px;color:var(--muted)}.spacer{flex:1}
-      .theme,.close,.semester-button{border:1px solid var(--line);border-radius:8px;color:var(--muted);background:transparent;padding:5px 8px;font-size:12px}
+      .theme,.close,.semester-button,.shortcut-button{border:1px solid var(--line);border-radius:8px;color:var(--muted);background:transparent;padding:5px 8px;font-size:12px}
       [hidden]{display:none!important}.semester-settings{padding:8px 22px 24px}.semester-settings h2{font-size:20px;margin:8px 0}.semester-settings p{color:var(--muted);font-size:13px}.semester-settings label{display:block;margin:18px 0 8px;font-size:12px;font-weight:600}.semester-actions{display:flex;gap:10px;margin-top:20px}.semester-actions button{padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:var(--hover);color:var(--text)}.semester-actions button:disabled{opacity:.5;cursor:default}.semester-button{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .shortcut-settings{padding:8px 22px 24px}.shortcut-settings h2{font-size:20px;margin:8px 0}.shortcut-settings p{color:var(--muted);font-size:13px}.shortcut-current{display:inline-block;margin:4px 0 10px;padding:4px 9px;border:1px solid var(--line);border-radius:6px;font-weight:600}.shortcut-actions{display:flex;gap:10px;margin-top:16px}.shortcut-actions button{padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:var(--hover);color:var(--text)}
       .search{display:flex;align-items:center;gap:14px;margin:0 22px 16px}.search span{font-size:24px;color:var(--accent)}input{width:100%;padding:7px 0;border:0;outline:none;background:transparent;color:var(--text);font-size:21px;letter-spacing:-.5px}input::placeholder{color:var(--muted)}
       .meta{display:flex;justify-content:space-between;padding:10px 22px;border-top:1px solid var(--line);font-size:11px;color:var(--muted);letter-spacing:.5px}
       .results{padding:0 10px 10px;max-height:46vh;overflow-y:auto;overscroll-behavior:contain}.option{display:flex;align-items:center;gap:13px;border-radius:10px;padding:12px;cursor:pointer;scroll-margin:8px}.option[aria-selected=true]{background:var(--hover)}.icon{display:grid;place-items:center;width:32px;height:32px;border:1px solid var(--line);border-radius:9px;color:var(--muted);flex-shrink:0}.label{font-size:14px;font-weight:550}.category{font-size:11px;color:var(--muted);margin-top:2px}.arrow{margin-left:auto;color:var(--accent);opacity:0}.option[aria-selected=true] .arrow{opacity:1}.empty{padding:30px 14px;text-align:center;color:var(--muted)}
@@ -34,13 +35,19 @@
     </style>
     <div class="dock"><button class="launcher" type="button" aria-label="Open VTOP command menu" title="Jump to a VTOP page">${logo}<kbd class="shortcut"></kbd></button><span class="sep" aria-hidden="true"></span><button class="semester-chip" type="button" aria-label="Change default semester">Set semester</button></div>
     <dialog aria-label="VTOP command menu">
-      <header><span class="brand">${logo}VTOP / COMMAND</span><span class="spacer"></span><button class="semester-button" type="button" aria-label="Choose default semester">Semester</button><button class="theme" type="button"></button><button class="close" type="button" aria-label="Close command menu">Esc</button></header>
+      <header><span class="brand">${logo}VTOP / COMMAND</span><span class="spacer"></span><button class="shortcut-button" type="button">Shortcut</button><button class="semester-button" type="button" aria-label="Choose default semester">Semester</button><button class="theme" type="button"></button><button class="close" type="button" aria-label="Close command menu">Esc</button></header>
       <section class="semester-settings" hidden aria-labelledby="semester-title">
         <h2 id="semester-title">Choose your default semester</h2>
         <p class="semester-help">We'll select this semester whenever a VTOP page asks for one. You can still change it on any page.</p>
         <label for="default-semester-trigger">Default semester</label><select id="default-semester"></select>
         <p class="semester-status" role="status"></p>
         <div class="semester-actions"><button class="save-semester" type="button">Save default</button><button class="open-timetable" type="button" hidden>Open Time Table</button><button class="clear-semester" type="button">Turn off</button><button class="skip-semester" type="button">Back</button></div>
+      </section>
+      <section class="shortcut-settings" hidden aria-labelledby="shortcut-title">
+        <h2 id="shortcut-title">Change your keyboard shortcut</h2>
+        <p>Current shortcut</p><kbd class="shortcut-current"></kbd>
+        <p class="shortcut-status" role="status">Use Ctrl or Command plus a letter, number, or F1–F12 key. Shift and Alt are optional.</p>
+        <div class="shortcut-actions"><button class="record-shortcut" type="button">Record shortcut</button><button class="save-shortcut" type="button" disabled>Save</button><button class="reset-shortcut" type="button">Reset</button><button class="back-shortcut" type="button">Back</button></div>
       </section>
       <div class="search"><span aria-hidden="true">⌕</span><input aria-label="Search VTOP pages" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="results" placeholder="Where do you want to go?" autocomplete="off" spellcheck="false"></div>
       <div class="meta"><span class="section">ALL PAGES</span><span class="count" role="status" aria-live="polite"></span></div>
@@ -52,7 +59,8 @@
   const input = shadow.querySelector('.search input');
   const list = shadow.querySelector('.results');
   let commands = [], filtered = [], selected = 0, recent = [], previousFocus, dark = false;
-  let defaultSemester = null, preferencesReady = false, prompted = false, semesterView = false;
+  let defaultSemester = null, preferencesReady = false, prompted = false, semesterView = false, shortcutView = false;
+  let pendingShortcut = null, recordingShortcut = false;
   // The default semester is applied once per page visit. A visit starts on load or when a VTOP page is opened from
   // its menu (or this one); later re-renders of the same page, e.g. after you pick another semester, keep your choice.
   let pageVisit = 0, appliedSemesters = new Map(), staleSemesters = new WeakSet(), manualSemesterVisit = -1;
@@ -151,6 +159,7 @@
     scanSemesters();
   }
   function showSemesterSettings() {
+    discardShortcutChange();
     open(); host.dispatchEvent(new CustomEvent('vtop-cgpa-hide')); semesterView = true;
     for (const selector of ['.search', '.meta', '.results', 'footer']) shadow.querySelector(selector).hidden = true;
     shadow.querySelectorAll('p.empty').forEach(p => p.remove());
@@ -181,9 +190,11 @@
     semesterCombobox.sync();
   }
   function showPages() {
+    discardShortcutChange();
     host.dispatchEvent(new CustomEvent('vtop-cgpa-hide'));
-    semesterView = false;
+    semesterView = false; shortcutView = false;
     shadow.querySelector('.semester-settings').hidden = true;
+    shadow.querySelector('.shortcut-settings').hidden = true;
     for (const selector of ['.search', '.meta', '.results', 'footer']) shadow.querySelector(selector).hidden = false;
   }
   function scanSemesters() {
@@ -210,10 +221,81 @@
       prompted = true; showSemesterSettings();
     }
   }
-  // The ⌘ glyph sits at lowercase height, so it gets its own span to match the K beside it.
-  const modifier = document.createElement('span');
-  modifier.className = shortcut.mac ? 'modifier symbol' : 'modifier'; modifier.textContent = shortcut.modifier;
-  shadow.querySelector('.shortcut').replaceChildren(modifier, ` ${shortcut.label.slice(shortcut.modifier.length).trim()}`);
+  function updateShortcutDisplay() {
+    shadow.querySelector('.shortcut').textContent = shortcut.label;
+    shadow.querySelector('.shortcut-current').textContent = shortcut.label;
+  }
+  updateShortcutDisplay();
+  function stopRecording() {
+    recordingShortcut = false;
+    document.removeEventListener('keydown', recordShortcutKey, true);
+  }
+  function discardShortcutChange() {
+    stopRecording();
+    pendingShortcut = null;
+    shadow.querySelector('.save-shortcut').disabled = true;
+    shadow.querySelector('.record-shortcut').textContent = 'Record shortcut';
+    updateShortcutDisplay();
+  }
+  function showShortcutSettings() {
+    discardShortcutChange();
+    open(); host.dispatchEvent(new CustomEvent('vtop-cgpa-hide'));
+    semesterView = false; shortcutView = true;
+    for (const selector of ['.search', '.meta', '.results', 'footer', '.semester-settings']) shadow.querySelector(selector).hidden = true;
+    shadow.querySelector('.shortcut-settings').hidden = false;
+    shadow.querySelector('.shortcut-status').textContent = 'Use Ctrl or Command plus a letter, number, or F1–F12 key. Shift and Alt are optional.';
+    shadow.querySelector('.record-shortcut').focus();
+  }
+  function recordShortcutKey(event) {
+    if (!recordingShortcut || event.isComposing || ['Shift', 'Alt', 'Control', 'Meta'].includes(event.key)) return;
+    event.preventDefault(); event.stopImmediatePropagation();
+    if (event.key === 'Escape') {
+      discardShortcutChange();
+      shadow.querySelector('.shortcut-status').textContent = 'Shortcut recording cancelled.';
+      return;
+    }
+    const primaryHeld = shortcut.mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
+    const key = event.key.toLowerCase();
+    if (!primaryHeld || !/^(?:[a-z0-9]|f(?:[1-9]|1[0-2]))$/i.test(key) ||
+        !/^(?:Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/.test(event.code)) {
+      shadow.querySelector('.shortcut-status').textContent = `That key combination cannot be used. Press ${shortcut.mac ? 'Command' : 'Ctrl'} with a letter, number, or F1–F12 key.`;
+      return;
+    }
+    pendingShortcut = { key, code: event.code, shiftKey: event.shiftKey, altKey: event.altKey };
+    stopRecording();
+    shadow.querySelector('.shortcut-current').textContent = [shortcut.mac ? '⌘' : 'Ctrl', ...(event.shiftKey ? ['Shift'] : []), ...(event.altKey ? ['Alt'] : []), key.toUpperCase()].join(' ');
+    shadow.querySelector('.save-shortcut').disabled = false;
+    shadow.querySelector('.record-shortcut').textContent = 'Record again';
+    shadow.querySelector('.shortcut-status').textContent = 'Save to use this shortcut. Some combinations are reserved by your browser or operating system.';
+  }
+  shadow.querySelector('.record-shortcut').addEventListener('click', () => {
+    discardShortcutChange(); recordingShortcut = true;
+    shadow.querySelector('.record-shortcut').textContent = 'Press shortcut…';
+    shadow.querySelector('.shortcut-status').textContent = `Now press ${shortcut.mac ? 'Command' : 'Ctrl'} plus a letter, number, or F1–F12 key. Escape cancels.`;
+    document.addEventListener('keydown', recordShortcutKey, true);
+  });
+  shadow.querySelector('.save-shortcut').addEventListener('click', async () => {
+    if (!pendingShortcut) return;
+    const status = shadow.querySelector('.shortcut-status');
+    try {
+      await chrome.storage.local.set({ commandShortcut: pendingShortcut });
+      if (!shortcut.set(pendingShortcut)) throw new Error('Invalid shortcut preference.');
+      pendingShortcut = null; updateShortcutDisplay(); showPages(); render(); input.focus();
+    } catch (error) {
+      status.textContent = `Could not save the shortcut: ${error.message}`;
+    }
+  });
+  shadow.querySelector('.reset-shortcut').addEventListener('click', async () => {
+    try {
+      discardShortcutChange();
+      await chrome.storage.local.remove('commandShortcut');
+      shortcut.set({ key: 'k', code: 'KeyK', shiftKey: false, altKey: false });
+      updateShortcutDisplay(); showPages(); render(); input.focus();
+    } catch (error) {
+      shadow.querySelector('.shortcut-status').textContent = `Could not reset the shortcut: ${error.message}`;
+    }
+  });
+  shadow.querySelector('.back-shortcut').addEventListener('click', () => { discardShortcutChange(); showPages(); render(); input.focus(); });
 
   function setTheme(value) {
     dark = value;
@@ -230,8 +312,9 @@
   try {
     // Filter memory was removed; drop what it had saved.
     chrome.storage.local.remove?.(['pageFilters', 'rememberFilters'])?.catch?.(() => {});
-    chrome.storage.local.get(['darkMode', 'defaultSemester', 'knownSemesters']).then(settings => {
+    chrome.storage.local.get(['darkMode', 'defaultSemester', 'knownSemesters', 'commandShortcut']).then(settings => {
       setTheme(settings.darkMode === true); setSemesterPreference(settings.defaultSemester);
+      if (settings.commandShortcut && shortcut.set(settings.commandShortcut)) updateShortcutDisplay();
       if (Array.isArray(settings.knownSemesters?.list)) {
         rememberSemesters(settings.knownSemesters.list, { persist: false });
         semestersUpdated = Number(settings.knownSemesters.updated) || 0;
@@ -247,6 +330,10 @@
         if (semesterView && dialog.open) renderSemesterPicker();
       }
       if (area === 'local' && changes.defaultSemester) setSemesterPreference(changes.defaultSemester.newValue);
+      if (area === 'local' && changes.commandShortcut) {
+        if (shortcut.set(changes.commandShortcut.newValue)) updateShortcutDisplay();
+        else { shortcut.set({ key: 'k', code: 'KeyK', shiftKey: false, altKey: false }); updateShortcutDisplay(); }
+      }
     });
   } catch { preferencesReady = true; setTimeout(scanSemesters, 0); }
 
@@ -261,19 +348,20 @@
     return [...home, ...commands,
       { id: 'vtop:cgpa', label: 'CGPA calculator', category: 'Study tools', keywords: 'grades gpa credits predict semester', action: () => {
         semesterView = true;
-        for (const selector of ['.search', '.meta', '.results', 'footer', '.semester-settings']) shadow.querySelector(selector).hidden = true;
+        for (const selector of ['.search', '.meta', '.results', 'footer', '.semester-settings', '.shortcut-settings']) shadow.querySelector(selector).hidden = true;
         shadow.querySelectorAll('p.empty').forEach(p => p.remove());
         host.dispatchEvent(new CustomEvent('vtop-cgpa-open'));
       } },
       { id: 'vtop:semester', label: 'Choose default semester', category: defaultSemester?.label || 'Preferences', keywords: 'semester term default automatic', action: showSemesterSettings },
+      { id: 'vtop:shortcut', label: 'Change keyboard shortcut', category: 'Preferences', keywords: 'hotkey keybinding command', action: showShortcutSettings },
       { id: 'vtop:theme', label: 'Toggle dark mode', category: 'Appearance', keywords: 'light theme night', action: toggleTheme }];
   }
-  function updateSelection() {
+  function updateSelection(scroll = true) {
     [...list.children].forEach((row, index) => row.setAttribute('aria-selected', String(index === selected)));
     const row = list.children[selected];
     if (row?.getAttribute('role') === 'option') {
       input.setAttribute('aria-activedescendant', row.id);
-      row.scrollIntoView?.({ block: 'nearest' });
+      if (scroll) row.scrollIntoView?.({ block: 'nearest' });
     } else input.removeAttribute('aria-activedescendant');
   }
   function render() {
@@ -300,7 +388,7 @@
       const category = document.createElement('div'); category.className = 'category'; category.textContent = command.category;
       const arrow = document.createElement('span'); arrow.className = 'arrow'; arrow.textContent = '↵'; arrow.setAttribute('aria-hidden', 'true');
       text.append(label, category); row.append(icon, text, arrow);
-      row.addEventListener('pointermove', () => { selected = index; updateSelection(); });
+      row.addEventListener('pointermove', () => { selected = index; updateSelection(false); });
       row.addEventListener('mousedown', event => event.preventDefault());
       row.addEventListener('click', () => activate(index)); list.append(row);
     });
@@ -335,6 +423,7 @@
   shadow.querySelector('.launcher').addEventListener('click', open);
   host.addEventListener('vtop-command-done', close);
   shadow.querySelector('.semester-chip').addEventListener('click', showSemesterSettings);
+  shadow.querySelector('.shortcut-button').addEventListener('click', showShortcutSettings);
   host.addEventListener('vtop-choose-semester', showSemesterSettings);
   shadow.querySelector('.close').addEventListener('click', close);
   shadow.querySelector('.theme').addEventListener('click', toggleTheme);
@@ -352,11 +441,11 @@
   });
   shadow.querySelector('.clear-semester').addEventListener('click', () => { prompted = true; saveSemesterPreference(null); close(); });
   shadow.querySelector('.skip-semester').addEventListener('click', () => { prompted = true; showPages(); render(); input.focus(); });
-  dialog.addEventListener('close', () => { host.dispatchEvent(new CustomEvent('vtop-cgpa-hide')); input.setAttribute('aria-expanded', 'false'); if (previousFocus?.isConnected) previousFocus.focus(); });
+  dialog.addEventListener('close', () => { discardShortcutChange(); host.dispatchEvent(new CustomEvent('vtop-cgpa-hide')); input.setAttribute('aria-expanded', 'false'); if (previousFocus?.isConnected) previousFocus.focus(); });
   dialog.addEventListener('click', event => { if (event.target === dialog) { const r = dialog.getBoundingClientRect(); if (event.clientX < r.left || event.clientX > r.right || event.clientY < r.top || event.clientY > r.bottom) close(); } });
   input.addEventListener('input', render);
   dialog.addEventListener('keydown', event => {
-    if (event.isComposing || semesterView || event.target !== input) return;
+    if (event.isComposing || semesterView || shortcutView || event.target !== input) return;
     if (['ArrowDown', 'ArrowUp', 'Enter'].includes(event.key)) {
       event.preventDefault(); event.stopPropagation();
       if (event.key === 'Enter') activate(selected);
@@ -364,6 +453,7 @@
     }
   });
   document.addEventListener('keydown', event => {
+    if (recordingShortcut) return;
     if (shortcut.matches(event) && !event.isComposing && !event.repeat) {
       event.preventDefault(); event.stopImmediatePropagation(); dialog.open ? close() : open();
     }
@@ -391,7 +481,7 @@
     clearTimeout(pending);
     pending = setTimeout(() => {
       scanSemesters();
-      if (dialog.open && !semesterView) { commands = discover(document); render(); }
+      if (dialog.open && !semesterView && !shortcutView) { commands = discover(document); render(); }
     }, 100);
     if (!host.isConnected) document.documentElement.append(host);
   }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-url', 'data-status', 'aria-disabled', 'disabled', 'value', 'id', 'name'] });

@@ -4,13 +4,13 @@ const fs = require('node:fs');
 const { JSDOM } = require('jsdom');
 const { discover, search } = require('../navigation');
 const fixture = fs.readFileSync(__dirname + '/fixture.html', 'utf8');
-function setup({ signedIn = true, savedDark = false, savedSemester, savedKnown, fetch, html, platform } = {}) {
+function setup({ signedIn = true, savedDark = false, savedSemester, savedKnown, savedShortcut, fetch, html, platform } = {}) {
   const dom = new JSDOM(html || (signedIn ? fixture : '<!doctype html><html><body><form>Sign in</form></body></html>'), { runScripts: 'outside-only', url: 'https://vtop.vit.ac.in/vtop/content' });
   const w = dom.window;
   w.HTMLDialogElement.prototype.showModal = function () { this.open = true; };
   w.HTMLDialogElement.prototype.close = function () { this.open = false; this.dispatchEvent(new w.Event('close')); };
-  const writes = [];
-  w.chrome = { storage: { local: { get: async () => ({ darkMode: savedDark, defaultSemester: savedSemester, knownSemesters: savedKnown }), set: async value => writes.push(value) }, onChanged: { addListener(listener) { (w.storageListeners ||= []).push(listener); } } } };
+  const writes = [], removals = [];
+  w.chrome = { storage: { local: { get: async () => ({ darkMode: savedDark, defaultSemester: savedSemester, knownSemesters: savedKnown, commandShortcut: savedShortcut }), set: async value => writes.push(value), remove: async keys => removals.push(keys) }, onChanged: { addListener(listener) { (w.storageListeners ||= []).push(listener); } } } };
   if (fetch) w.fetch = fetch;
   if (platform) Object.defineProperty(w.navigator, 'platform', { value: platform, configurable: true });
   w.eval(fs.readFileSync(__dirname + '/../brand.js', 'utf8'));
@@ -21,7 +21,7 @@ function setup({ signedIn = true, savedDark = false, savedSemester, savedKnown, 
   const shadow = w.document.querySelector('#vtop-command-root').shadowRoot;
   const key = (value, options = {}, target = w.document) => target.dispatchEvent(new w.KeyboardEvent('keydown', { key: value, bubbles: true, cancelable: true, ...options }));
   const query = value => { const input = shadow.querySelector('.search input'); input.value = value; input.dispatchEvent(new w.Event('input')); };
-  return { dom, w, shadow, key, query, writes };
+  return { dom, w, shadow, key, query, writes, removals };
 }
 test('discovers hidden Bootstrap 5 and legacy menu destinations, deduplicates quick links, preserves subcategories', () => {
   const dom = new JSDOM(fixture), commands = discover(dom.window.document);
@@ -51,6 +51,19 @@ test('Ctrl+K toggles (Windows/Linux); keyboard selection invokes the existing pa
   assert.equal(clicks,1); assert.equal(submits,0); assert.equal(shadow.querySelector('dialog').open,false); assert.equal(w.document.activeElement,focus);
   key('k',{ctrlKey:true}); assert.equal(shadow.querySelector('dialog').open,true);
   key('k',{ctrlKey:true}); assert.equal(shadow.querySelector('dialog').open,false);
+  dom.window.close();
+});
+test('moving the pointer over results does not scroll the page; keyboard navigation still reveals its selection', () => {
+  const {dom,w,shadow,key}=setup();
+  const scrolled=[];
+  w.HTMLElement.prototype.scrollIntoView=function(options){scrolled.push({element:this,options});};
+  key('k',{ctrlKey:true});
+  scrolled.length=0;
+  const row=shadow.querySelectorAll('[role=option]')[1];
+  row.dispatchEvent(new w.MouseEvent('pointermove',{bubbles:true}));
+  assert.equal(scrolled.length,0,'hovering a result must not trigger automatic scrolling');
+  key('ArrowDown',{},shadow.querySelector('.search input'));
+  assert.equal(scrolled.length,1,'keyboard navigation keeps the selected result visible');
   dom.window.close();
 });
 test('re-resolves native elements after AJAX replacement and discovers newly inserted pages', async () => {
@@ -255,6 +268,58 @@ test('Windows/Linux use and show Ctrl+K only; macOS uses and shows Cmd+K; physic
   mac.key('k',{ctrlKey:true}); assert.equal(mac.shadow.querySelector('dialog').open,false,'Ctrl+K stays native on macOS');
   mac.key('k',{metaKey:true}); assert.equal(mac.shadow.querySelector('dialog').open,true);
   mac.dom.window.close();
+});
+test('shortcut setting records, saves, applies, restores across tabs, and resets the command shortcut', async () => {
+  const {dom,shadow,key,writes,removals}=setup({platform:'Win32'}); await flush();
+  shadow.querySelector('.shortcut-button').click();
+  shadow.querySelector('.record-shortcut').click();
+  key('P',{code:'KeyP',ctrlKey:true,shiftKey:true});
+  assert.equal(shadow.querySelector('.shortcut-current').textContent,'Ctrl Shift P');
+  shadow.querySelector('.save-shortcut').click(); await flush();
+  assert.equal(shadow.querySelector('.shortcut').textContent,'Ctrl Shift P');
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.find(write=>write.commandShortcut)?.commandShortcut)),{key:'p',code:'KeyP',shiftKey:true,altKey:false});
+  shadow.querySelector('.close').click();
+  key('p',{ctrlKey:true}); assert.equal(shadow.querySelector('dialog').open,false,'the modifier combination must match exactly');
+  key('p',{ctrlKey:true,shiftKey:true}); assert.equal(shadow.querySelector('dialog').open,true,'the saved shortcut opens the menu');
+  shadow.querySelector('.shortcut-button').click();
+  shadow.querySelector('.reset-shortcut').click(); await flush();
+  assert.ok(removals.includes('commandShortcut'));
+  assert.equal(shadow.querySelector('.shortcut').textContent,'Ctrl K');
+  shadow.querySelector('.close').click();
+  key('k',{ctrlKey:true}); assert.equal(shadow.querySelector('dialog').open,true,'reset restores the default shortcut');
+  dom.window.close();
+});
+test('saved shortcut preferences load and malformed values are ignored', async () => {
+  const saved=setup({platform:'Win32',savedShortcut:{key:'p',code:'KeyP',shiftKey:false,altKey:false}}); await flush();
+  assert.equal(saved.shadow.querySelector('.shortcut').textContent,'Ctrl P');
+  saved.key('p',{ctrlKey:true}); assert.equal(saved.shadow.querySelector('dialog').open,true);
+  saved.dom.window.close();
+  const malformed=setup({platform:'Win32',savedShortcut:{key:'Escape',code:'Escape'}}); await flush();
+  assert.equal(malformed.shadow.querySelector('.shortcut').textContent,'Ctrl K');
+  malformed.dom.window.close();
+});
+test('cancelling or leaving shortcut recording discards the unsaved key and restores the active shortcut', async () => {
+  const {dom,shadow,key,writes}=setup({platform:'Win32'}); await flush();
+  const openSettings=()=>shadow.querySelector('.shortcut-button').click();
+  openSettings();
+  shadow.querySelector('.record-shortcut').click();
+  key('P',{code:'KeyP',ctrlKey:true});
+  assert.equal(shadow.querySelector('.shortcut-current').textContent,'Ctrl P');
+  shadow.querySelector('.record-shortcut').click();
+  key('Escape');
+  assert.equal(shadow.querySelector('.shortcut-current').textContent,'Ctrl K');
+  assert.equal(shadow.querySelector('.save-shortcut').disabled,true);
+  shadow.querySelector('.record-shortcut').click();
+  key('P',{code:'KeyP',ctrlKey:true});
+  shadow.querySelector('.close').click();
+  openSettings();
+  assert.equal(shadow.querySelector('.shortcut-current').textContent,'Ctrl K');
+  assert.equal(shadow.querySelector('.save-shortcut').disabled,true);
+  assert.equal(writes.some(write=>write.commandShortcut),false);
+  shadow.querySelector('.close').click();
+  key('k',{ctrlKey:true});
+  assert.equal(shadow.querySelector('dialog').open,true,'the existing shortcut remains active after cancelling');
+  dom.window.close();
 });
 test('launcher is a minimal pill: logo, platform shortcut and semester only', () => {
   const {dom,shadow}=setup({platform:'Win32'});
