@@ -25,15 +25,16 @@ Run `npm run build`, open `chrome://extensions` (or `brave://extensions`), enabl
 
 ### Firefox and Zen Browser
 
-#### Use the provided XPI
+#### Install the provided XPI
 
-1. Open `about:debugging#/runtime/this-firefox` and choose **Load Temporary Add-on…**.
-2. Select the repository's top-level `vtop_command-1.2.0.xpi`.
-3. Open VTOP and sign in as usual.
+1. Open Firefox's **Add-ons and themes** page (`about:addons`).
+2. Open the gear menu and choose **Install Add-on From File…**.
+3. Select the repository's top-level `vtop_command-1.2.0.xpi` and confirm the installation.
+4. Open VTOP and sign in as usual.
 
-This loads the provided XPI as a temporary add-on; Firefox removes temporary add-ons when it closes.
+The provided XPI is signed and installs as a regular add-on, so it remains installed after Firefox closes.
 
-#### Or load the extension directly from source
+#### Temporary install from source
 
 1. Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on…**, and select the repository's top-level `manifest.json`.
 2. Open VTOP and sign in as usual.
@@ -45,7 +46,7 @@ To create a distributable ZIP instead, build the Firefox package:
    npm ci
    npm run build
    ```
-This creates `dist/vtop-command/` and `dist/vtop-command-1.2.0.zip` for Chrome/Brave, plus `dist/vtop-command-firefox/` and `dist/vtop-command-firefox-1.2.0.zip` for Firefox/Zen. To build only one browser, use `npm run build -- --browser chrome` or `npm run build -- --browser firefox`. The build creates ZIP packages, not an XPI; use the provided XPI above to load the extension temporarily in Firefox.
+This creates `dist/vtop-command/` and `dist/vtop-command-1.2.0.zip` for Chrome/Brave, plus `dist/vtop-command-firefox/` and `dist/vtop-command-firefox-1.2.0.zip` for Firefox/Zen. To build only one browser, use `npm run build -- --browser chrome` or `npm run build -- --browser firefox`. The build creates ZIP packages, not a signed XPI; use the provided XPI above for a regular Firefox installation.
 
 After updating the code, rebuild the relevant package, remove or reload the old add-on, and refresh VTOP.
 
