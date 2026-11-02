@@ -1,10 +1,11 @@
-"""Package only the runtime extension files; no account data or development fixtures."""
+"""Build browser extension packages and a reproducible source submission archive."""
 from pathlib import Path
 import json
 import shutil
 import zipfile
 import struct
 import argparse
+import os
 from browser_manifest import browser_manifest
 
 root = Path(__file__).resolve().parent.parent
@@ -14,7 +15,39 @@ assert source_manifest['manifest_version'] == 3
 assert source_manifest.get('background') == {'scripts': ['deadline-cache.js', 'extension-action.js']}
 parser = argparse.ArgumentParser()
 parser.add_argument('--browser', choices=['chrome', 'firefox', 'all'], default='all')
-selected = parser.parse_args().browser
+parser.add_argument('--source-only', action='store_true')
+options = parser.parse_args()
+selected = options.browser
+def build_source_archive():
+    version = source_manifest['version']
+    archive = root / 'dist' / f'vtop-command-source-{version}.zip'
+    source_root = f'vtop-command-source-{version}'
+    excluded_dirs = {'.git', 'node_modules', 'dist', '__pycache__', 'extensions'}
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as bundle:
+        for current, dirs, names in os.walk(root):
+            dirs[:] = sorted(directory for directory in dirs if directory not in excluded_dirs)
+            for name in sorted(names):
+                if name.endswith(('.pyc', '.zip', '.xpi')):
+                    continue
+                path = Path(current) / name
+                relative = path.relative_to(root)
+                bundle.write(path, (Path(source_root) / relative).as_posix())
+    with zipfile.ZipFile(archive) as bundle:
+        assert bundle.testzip() is None
+        prefix = f'{source_root}/'
+        names = {name[len(prefix):] for name in bundle.namelist() if name.startswith(prefix)}
+        required = {'README.md', 'package.json', 'package-lock.json', 'manifest.json',
+                    'scripts/build.cjs', 'scripts/build.py', 'scripts/browser_manifest.py'}
+        assert required <= names, f'Missing source files: {sorted(required - names)}'
+        assert not any(Path(name).suffix.lower() in {'.xpi', '.zip'} for name in names)
+    print(f'Built {archive}')
+    print('VERDICT: PASS')
+
+if options.source_only:
+    build_source_archive()
+    raise SystemExit(0)
+
 browsers = ['chrome', 'firefox'] if selected == 'all' else [selected]
 for browser in browsers:
     manifest = browser_manifest(source_manifest, browser)

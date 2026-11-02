@@ -1,12 +1,13 @@
 {
   "name": "vtop-command-menu",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "description": "A local, DOM-driven command menu for VTOP",
   "scripts": {
     "test": "node --test",
     "check": "node --check dark-readability.js && node --check brand.js && node --check combobox.js && node --check cgpa.js && node --check cgpa-ui.js && node --check content.js && node --check navigation.js && node --check semesters.js && node --check enhancements.js && node --check pdf-bridge.js && node --check pdf-preview.js && node --check pdf-viewer.mjs && node --check pptx-viewer.mjs && node --check ppt-viewer.mjs && node --check word-viewer.mjs && node --check page-enhancements.js && node --check page-actions.js && node --check page-runtime.js && node --check extension-action.js && node --check form-presets.js && node --check search-select.js && node --check scripts/build.cjs && node --check deadline-cache.js && node --check deadline-cache-client.js && node --check extension-background.js && node --check captcha.js && node --check captcha-solver.js",
-    "build": "node scripts/build.cjs"
+    "build": "node scripts/build.cjs",
+    "source": "node scripts/build.cjs --source-only"
   },
   "devDependencies": {
     "jsdom": "^30.1.3"

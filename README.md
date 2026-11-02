@@ -17,7 +17,7 @@ It works only on `https://vtop.vit.ac.in/vtop/*`. It reads VTOP the way you do, 
 
 ## Install
 
-The extension isn't published in an add-on store yet, so you load it yourself. This repository builds Chrome/Brave and Firefox/Zen packages from the same runtime, including the local PowerPoint viewer.
+This repository builds Chrome/Brave and Firefox/Zen packages from the same runtime, including local Word and PowerPoint viewers.
 
 ### Chrome and Brave
 
@@ -33,17 +33,17 @@ After the add-on is approved and published, install it from its Firefox Add-ons 
 
 1. Open Firefox's **Add-ons and themes** page (`about:addons`).
 2. Open the gear menu and choose **Install Add-on From File…**.
-3. Select the repository's top-level `vtop-command-1.2.0.xpi` and confirm the installation.
+3. Select `extensions/vtop-command-1.2.1.xpi` and confirm the installation. This is the previous signed 1.2.0 release.
 4. Open VTOP and sign in as usual.
 
-The signed XPI installs as a regular add-on and remains installed after Firefox closes. The top-level manifest and its tracked files are also a complete Firefox extension; the PDF.js and PowerPoint renderers and required assets are included under `vendor/`.
+The signed XPI installs as a regular add-on and remains installed after Firefox closes.
 
 To create a distributable ZIP instead, build the Firefox package:
    ```bash
    npm ci
    npm run build -- --browser firefox
    ```
-This creates `dist/vtop-command-firefox/` and `dist/vtop-command-firefox-1.2.0.zip`. The ZIP has `manifest.json` at its root and contains the complete Firefox extension. It is not itself a signed add-on.
+This creates `dist/vtop-command-firefox/` and `dist/vtop-command-firefox-1.2.1.zip`. The ZIP has `manifest.json` at its root and contains the complete Firefox extension. It is not itself a signed add-on. Upload this Firefox ZIP to the Firefox Add-ons developer page.
 
 After updating the code, rebuild the relevant package, remove or reload the old add-on, and refresh VTOP.
 
@@ -217,7 +217,7 @@ Your password, marks history and attendance are never saved by the extension.
 
 The build is supported on Windows, macOS and Linux. It requires:
 
-- Node.js 24.15.0 or newer (Node.js 24.16.0 verified).
+- Node.js 24.x (Node.js 24.16.0 verified).
 - npm 11.x (npm 11.13.0 verified; included with Node.js).
 - Python 3.12 or newer (the CI build uses Python 3.12). The build uses only Python's standard library.
 
@@ -230,7 +230,7 @@ npm test
 npm run build -- --browser firefox
 ```
 
-The build script (`scripts/build.cjs` and `scripts/build.py`) copies the Firefox runtime files, vendor assets and icons into `dist/vtop-command-firefox/`, then creates `dist/vtop-command-firefox-1.2.0.zip`. The package ZIP has `manifest.json` at its root. Extension source files are used as written; the only bundled third-party code is under `vendor/` and is distributed with its license/notices. The build does not transpile, concatenate or minify extension source.
+The build script (`scripts/build.cjs` and `scripts/build.py`) copies the Firefox runtime files, vendor assets and icons into `dist/vtop-command-firefox/`, then creates `dist/vtop-command-firefox-1.2.1.zip`. The package ZIP has `manifest.json` at its root. Extension source files are used as written; the only bundled third-party code is under `vendor/` and is distributed with its license/notices. The build does not transpile, concatenate or minify extension source. `npm run source` creates the self-contained `dist/vtop-command-source-1.2.1.zip` source submission archive.
 
 To load the exact built extension locally, open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on…**, and select `dist/vtop-command-firefox/manifest.json`.
 
@@ -248,8 +248,8 @@ Tests use made-up data shaped like VTOP's real markup. No account data is includ
 - **Every pull request** runs `.github/workflows/ci.yml`. It runs the syntax check, the tests and both builds, and lints the Firefox package with Mozilla's `web-ext lint`. The built ZIPs are attached to the run. `main` requires this check to pass before a pull request can merge.
 - **Releases** come from tags. Bump the version in `manifest.json` and `package.json`, merge that to `main`, then push a matching tag:
   ```bash
-  git tag v1.2.0 origin/main
-  git push origin v1.2.0
+  git tag v1.2.1 origin/main
+  git push origin v1.2.1
   ```
   `.github/workflows/release.yml` checks that the tag matches both versions and is on `main`, rebuilds and tests, then publishes a GitHub release with the Chrome and Firefox ZIPs.
 

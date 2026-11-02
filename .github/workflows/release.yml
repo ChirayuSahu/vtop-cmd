@@ -1,4 +1,4 @@
-# Push a tag like v1.2.0 on main to publish a GitHub release with the Chrome and Firefox packages.
+# Push a version tag on main to publish a GitHub release with the Chrome and Firefox packages.
 name: Release
 
 on:
