@@ -29,11 +29,11 @@ Run `npm run build`, open `chrome://extensions` (or `brave://extensions`), enabl
 
 After the add-on is approved and published, install it from its Firefox Add-ons listing. Published add-ons are signed by Mozilla and remain installed after Firefox closes.
 
-#### Permanent install from the provided XPI
+#### Permanent install from a GitHub release
 
 1. Open Firefox's **Add-ons and themes** page (`about:addons`).
 2. Open the gear menu and choose **Install Add-on From File…**.
-3. Select `extensions/vtop-command-1.2.1.xpi` and confirm the installation. This is the previous signed 1.2.0 release.
+3. Download `vtop-command-1.2.1.xpi` from the [1.2.1 GitHub release](https://github.com/ChirayuSahu/vtop-cmd/releases/tag/v1.2.1), select it, and confirm the installation.
 4. Open VTOP and sign in as usual.
 
 The signed XPI installs as a regular add-on and remains installed after Firefox closes.

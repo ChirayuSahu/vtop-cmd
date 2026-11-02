@@ -5,7 +5,7 @@ import shutil
 import zipfile
 import struct
 import argparse
-import os
+import subprocess
 from browser_manifest import browser_manifest
 
 root = Path(__file__).resolve().parent.parent
@@ -22,21 +22,26 @@ def build_source_archive():
     version = source_manifest['version']
     archive = root / 'dist' / f'vtop-command-source-{version}.zip'
     source_root = f'vtop-command-source-{version}'
-    excluded_dirs = {'.git', 'node_modules', 'dist', '__pycache__', 'extensions'}
     archive.parent.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as bundle:
-        for current, dirs, names in os.walk(root):
-            dirs[:] = sorted(directory for directory in dirs if directory not in excluded_dirs)
-            for name in sorted(names):
-                if name.endswith(('.pyc', '.zip', '.xpi')):
-                    continue
-                path = Path(current) / name
-                relative = path.relative_to(root)
-                bundle.write(path, (Path(source_root) / relative).as_posix())
+    subprocess.run(
+        ['git', 'archive', '--format=zip', f'--prefix={source_root}/', '-o', str(archive), 'HEAD'],
+        cwd=root,
+        check=True,
+    )
     with zipfile.ZipFile(archive) as bundle:
         assert bundle.testzip() is None
         prefix = f'{source_root}/'
-        names = {name[len(prefix):] for name in bundle.namelist() if name.startswith(prefix)}
+        names = {
+            name[len(prefix):] for name in bundle.namelist()
+            if name.startswith(prefix) and not name.endswith('/')
+        }
+        tracked = set(subprocess.run(
+            ['git', 'ls-tree', '-r', '--name-only', '-z', 'HEAD'],
+            cwd=root,
+            check=True,
+            capture_output=True,
+        ).stdout.decode('utf-8').split('\0')) - {''}
+        assert names <= tracked, f'Archive contains untracked files: {sorted(names - tracked)}'
         required = {'README.md', 'package.json', 'package-lock.json', 'manifest.json',
                     'scripts/build.cjs', 'scripts/build.py', 'scripts/browser_manifest.py'}
         assert required <= names, f'Missing source files: {sorted(required - names)}'
