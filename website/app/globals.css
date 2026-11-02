@@ -1,0 +1,437 @@
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+  --page: #ffffff;
+  --ink: #111214;
+  --muted: #8a8f98;
+  --soft: #f5f5f4;
+  --line: #ececea;
+  --accent: #2f5fe0;
+  --accent-soft: #e8eefc;
+  --sun: #f6cb3c;
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-soft: var(--soft);
+  --color-line: var(--line);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-sun: var(--sun);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-urbanist);
+}
+
+/* In-page links (#download, #features…) glide instead of jumping. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Parallax, driven by scroll position in CSS. Browsers without scroll timelines, and reduced
+   motion, get the static layout. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    /* Large type glides sideways while it crosses the screen. */
+    .parallax-x {
+      animation: parallax-x linear both;
+      animation-timeline: view();
+      animation-range: cover;
+    }
+
+    /* The full-width ticker would touch the screen edge on phones, so it only drifts on wider screens. */
+    @media (min-width: 640px) {
+      .parallax-x-reverse {
+        animation: parallax-x linear both reverse;
+        animation-timeline: view();
+        animation-range: cover;
+      }
+    }
+  }
+}
+
+@keyframes parallax-x {
+  from { translate: 8% 0; }
+  to { translate: -8% 0; }
+}
+
+/* Tailwind resets buttons to the default cursor; everything clickable shows a pointer. */
+button:not(:disabled),
+[role="button"],
+summary,
+label[for] {
+  cursor: pointer;
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.display {
+  font-family: var(--font-urbanist), var(--font-geist-sans), sans-serif;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+  line-height: 1.02;
+}
+
+/* Pill buttons with an aurora hover: a rotating edge in the page's own colours (brand blues, the
+   window-dot green, yellow, orange and red) appears around the button, and a soft blurred glow of the
+   same colours leaks out behind it. Nothing moves. */
+@property --aurora-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes aurora {
+  to { --aurora-angle: 360deg; }
+}
+
+@layer components {
+  .btn {
+    position: relative;
+    isolation: isolate;
+    display: inline-flex;
+    padding: 1.5px;
+    border-radius: 9999px;
+    background: var(--btn-ring);
+    font-size: 0.875rem;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  /* ::after is the sharp edge, ::before the blurred glow. Both sit behind the button face. */
+  .btn::before,
+  .btn::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: conic-gradient(
+      from var(--aurora-angle),
+      var(--accent),
+      #86b5ff,
+      #28c840,
+      var(--sun),
+      #ff9f43,
+      #ff5f57,
+      #a9beff,
+      var(--accent)
+    );
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    animation: aurora 3.5s linear infinite paused;
+  }
+
+  .btn::before {
+    inset: -6px;
+    filter: blur(16px);
+  }
+
+  .btn:hover::before,
+  .btn:focus-visible::before {
+    opacity: 0.45;
+    animation-play-state: running;
+  }
+
+  .btn:hover::after,
+  .btn:focus-visible::after {
+    opacity: 0.7;
+    animation-play-state: running;
+  }
+
+  .btn:focus-visible {
+    outline: none;
+  }
+
+  .btn-face {
+    display: inline-flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    height: calc(2.5rem - 3px);
+    padding: 0 1.25rem;
+    border-radius: inherit;
+    background: var(--btn-bg);
+    color: var(--btn-text);
+    transition: background-color 0.2s ease;
+  }
+
+  .btn:active .btn-face {
+    background: var(--btn-bg-active);
+  }
+
+  .btn-confirm {
+    --btn-ring: #2c2d31;
+    --btn-bg: var(--ink);
+    --btn-bg-active: #2c2d31;
+    --btn-text: #fff;
+  }
+
+  .btn-default {
+    --btn-ring: #d4d4d8;
+    --btn-bg: #fff;
+    --btn-bg-active: #f4f4f5;
+    --btn-text: var(--ink);
+  }
+}
+
+/* Scroll-in reveal used by <Reveal>. Content stays visible when scripts can't run. */
+@media (scripting: enabled) {
+  .reveal {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(24px);
+    transition: opacity 0.8s cubic-bezier(0.2, 0.7, 0.2, 1), transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1),
+      filter 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+}
+
+/* Character-by-character reveal used by <RevealText>. */
+@media (scripting: enabled) {
+  .reveal-text .char {
+    display: inline-block;
+    opacity: 0;
+    filter: blur(10px);
+    transform: translateY(0.3em);
+    transition: opacity 0.7s cubic-bezier(0.2, 0.7, 0.2, 1), transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1),
+      filter 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+    transition-delay: calc(var(--delay, 0ms) + var(--i) * 28ms);
+  }
+}
+
+.reveal-text[data-shown="true"] .char {
+  opacity: 1;
+  filter: none;
+  transform: none;
+}
+
+.reveal[data-shown="true"] {
+  opacity: 1;
+  filter: none;
+  transform: none;
+}
+
+@keyframes slide {
+  to { transform: translateX(-50%); }
+}
+
+.slide {
+  animation: slide 14s linear infinite;
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(47, 95, 224, 0.35); }
+  100% { box-shadow: 0 0 0 18px rgba(47, 95, 224, 0); }
+}
+
+.pulse {
+  animation: pulse-ring 2.4s ease-out infinite;
+}
+
+/* Live cards: the typing caret, rows fading in as results change, and keycaps pressing. */
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.caret {
+  animation: blink 1s steps(1) infinite;
+}
+
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(4px); }
+}
+
+.row-in {
+  animation: row-in 0.35s ease-out backwards;
+}
+
+@keyframes press {
+  0%, 100% { transform: none; box-shadow: 0 4px 0 rgba(255, 255, 255, 0.08); }
+  12% { transform: translateY(3px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08); background: rgba(47, 95, 224, 0.35); }
+  30% { transform: none; }
+}
+
+.keycap {
+  box-shadow: 0 4px 0 rgba(255, 255, 255, 0.08);
+}
+
+.keycap.pressing {
+  animation: press 1.2s ease-out backwards;
+}
+
+/* Feature showcase: each scene's animation runs only while it is the active one. */
+@keyframes progress {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.progress {
+  transform-origin: left;
+  animation: progress linear forwards;
+}
+
+@keyframes pop {
+  from { opacity: 0; scale: 0.96; filter: blur(6px); }
+}
+
+.chip-in,
+.scene.is-active .scene-pop {
+  animation: pop 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+.scene.is-active .scene-pop {
+  animation-delay: 0.15s;
+}
+
+.scene.is-active .row-stagger {
+  animation: row-in 0.5s ease-out backwards;
+}
+
+@keyframes total-in {
+  from { opacity: 0; filter: blur(4px); }
+}
+
+.scene.is-active .total-row {
+  animation: total-in 0.6s 0.75s ease-out backwards;
+}
+
+@keyframes wipe {
+  0%, 8% { clip-path: inset(0 100% 0 0); }
+  42%, 62% { clip-path: inset(0 0 0 0); }
+  96%, 100% { clip-path: inset(0 100% 0 0); }
+}
+
+@keyframes wipe-edge {
+  0%, 8% { left: 0%; opacity: 1; }
+  42% { left: 100%; opacity: 1; }
+  43%, 61% { opacity: 0; }
+  62% { left: 100%; opacity: 1; }
+  96%, 100% { left: 0%; opacity: 1; }
+}
+
+@keyframes knob {
+  0%, 8% { translate: 0; }
+  42%, 62% { translate: 16px; }
+  96%, 100% { translate: 0; }
+}
+
+.wipe-edge { left: 100%; opacity: 0; }
+.toggle-knob { translate: 16px; }
+.scene.is-active .wipe { animation: wipe 6s ease-in-out infinite; }
+.scene.is-active .wipe-edge { animation: wipe-edge 6s ease-in-out infinite; }
+.scene.is-active .toggle-knob { animation: knob 6s ease-in-out infinite; }
+
+@keyframes semester-list {
+  0%, 8% { opacity: 0; translate: 0 -6px; }
+  14%, 52% { opacity: 1; translate: 0; }
+  58%, 100% { opacity: 0; translate: 0 -6px; }
+}
+
+@keyframes semester-pick {
+  0%, 26% { opacity: 0; }
+  32%, 100% { opacity: 1; }
+}
+
+@keyframes semester-value {
+  0%, 54% { opacity: 0.35; }
+  58%, 100% { opacity: 1; }
+}
+
+@keyframes semester-badge {
+  0%, 60% { opacity: 0; scale: 0.92; }
+  68%, 94% { opacity: 1; scale: 1; }
+  100% { opacity: 0; }
+}
+
+.semester-list { opacity: 0; pointer-events: none; }
+.scene.is-active .semester-list { animation: semester-list 5s ease-in-out infinite; }
+.scene.is-active .semester-pick { animation: semester-pick 5s ease-in-out infinite; }
+.scene.is-active .semester-value { animation: semester-value 5s ease-in-out infinite; }
+.scene.is-active .semester-badge { animation: semester-badge 5s ease-in-out infinite; }
+
+@keyframes doc-scroll {
+  0%, 12% { translate: 0 0; }
+  88%, 100% { translate: 0 -48%; }
+}
+
+.scene.is-active .doc-scroll { animation: doc-scroll 9s ease-in-out infinite alternate; }
+
+/* Safety cards: slow, quiet loops. Static states are the finished picture. */
+@keyframes waiting-dot {
+  50% { opacity: 0.25; }
+}
+
+.waiting-dot { animation: waiting-dot 1.6s ease-in-out infinite; }
+
+@keyframes submit-wait {
+  0% { box-shadow: 0 0 0 0 rgba(47, 95, 224, 0.28); }
+  70%, 100% { box-shadow: 0 0 0 10px rgba(47, 95, 224, 0); }
+}
+
+.submit-wait { animation: submit-wait 2.4s ease-out infinite; }
+
+/* One 6s timeline: each step is pending, then checked, in order; all reset together. */
+@keyframes step-0 { 0%, 8% { --done: 0; } 14%, 88% { --done: 1; } 96%, 100% { --done: 0; } }
+@keyframes step-1 { 0%, 30% { --done: 0; } 36%, 88% { --done: 1; } 96%, 100% { --done: 0; } }
+@keyframes step-2 { 0%, 52% { --done: 0; } 58%, 88% { --done: 1; } 96%, 100% { --done: 0; } }
+
+@property --done {
+  syntax: "<number>";
+  initial-value: 1;
+  inherits: true;
+}
+
+.queue-step-0 { animation: step-0 6s ease-in-out infinite; }
+.queue-step-1 { animation: step-1 6s ease-in-out infinite; }
+.queue-step-2 { animation: step-2 6s ease-in-out infinite; }
+
+.queue-label { color: color-mix(in srgb, var(--ink) calc(55% + var(--done) * 45%), var(--muted)); }
+.queue-pending { opacity: calc(1 - var(--done)); }
+.queue-check { opacity: var(--done); scale: calc(0.7 + var(--done) * 0.3); }
+
+@keyframes packet {
+  0% { offset-distance: 0%; opacity: 0; }
+  15%, 85% { opacity: 1; }
+  100% { offset-distance: 100%; opacity: 0; }
+}
+
+.packet {
+  offset-path: path("M102 66 C150 66 168 40 212 40");
+  animation: packet 3s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress { transform: scaleX(1); }
+  .chip-in, .scene .scene-pop, .scene .row-stagger, .scene .total-row, .scene .wipe, .scene .wipe-edge,
+  .scene .toggle-knob, .scene .semester-list, .scene .semester-pick, .scene .semester-value,
+  .scene .semester-badge, .scene .doc-scroll, .waiting-dot, .submit-wait, .queue-step-0, .queue-step-1,
+  .queue-step-2, .packet {
+    animation: none !important;
+  }
+  .reveal-text .char {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    transition: none;
+  }
+  .reveal {
+    opacity: 1;
+    filter: none;
+    transform: none;
+    transition: none;
+  }
+  .slide, .pulse, .btn::before, .btn::after, .caret, .row-in, .keycap.pressing {
+    animation: none;
+  }
+}

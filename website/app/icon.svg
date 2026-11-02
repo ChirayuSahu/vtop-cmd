@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none">
+  <defs><linearGradient id="vtop-logo-bg" x1="12" y1="8" x2="116" y2="128" gradientUnits="userSpaceOnUse"><stop stop-color="#244B86"/><stop offset="1" stop-color="#101B34"/></linearGradient></defs>
+  <rect x="2" y="2" width="124" height="124" rx="30" fill="url(#vtop-logo-bg)"/>
+  <rect x="3" y="3" width="122" height="122" rx="29" stroke="#86B5FF" stroke-opacity=".22" stroke-width="2"/>
+  <path d="M29 40L59 88L92 39" stroke="#F4F8FF" stroke-width="11" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M78 32H97V51" stroke="#61E1E3" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
