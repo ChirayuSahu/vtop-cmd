@@ -22,3 +22,21 @@ test('PowerPoint rendering blocks external media and retains lazy windowed rende
  assert.equal(args[2].lazySlides,true);assert.equal(args[2].lazyMedia,true);
  assert.equal(args[3].listOptions.windowed,true);assert.equal(args[3].listOptions.initialSlides,4);
 });
+test('legacy PowerPoint renderer uses the bundled runtime without workers',async()=>{
+ const source=fs.readFileSync(root+'ppt-viewer.mjs','utf8').replace(/^import[^\n]+\n/,'').replace('export async function','async function');
+ let args;const runtime={mount:async(...values)=>{args=values;return 'mounted';}};
+ const context={createPptViewer:async options=>{assert.equal(options.worker,false);assert.equal(options.cache,false);return runtime;},Uint8Array};
+ vm.createContext(context);vm.runInContext(source,context);let cleared=false;
+ assert.equal(await context.renderLegacyPpt(new Uint8Array([1,2]).buffer,{replaceChildren(){cleared=true;}}),'mounted');
+ assert.ok(cleared);assert.equal(args[1].byteLength,2);assert.equal(args[2].className,'ppt-slides');
+ assert.equal(args[2].virtualize,true);assert.equal(args[2].replace,true);
+});
+test('Word renderer blocks external content and supports both file formats',()=>{
+ const source=fs.readFileSync(root+'word-viewer.mjs','utf8');
+ assert.match(source,/externalLinkPolicy:\s*'block'/);
+ assert.match(source,/externalResourcePolicy:\s*'block'/);
+ assert.match(source,/renderAltChunks:\s*false/);
+ assert.match(source,/parseMsDoc\(new Uint8Array\(data\)\)/);
+ assert.match(source,/renderAsync\(new Uint8Array\(data\)/);
+ assert.match(source,/purifier\.sanitize\(rendered\.html/);
+});

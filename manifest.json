@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VTOP Command",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Jump to VTOP pages with Cmd+K/Ctrl+K, and give VTOP a comfortable dark mode.",
   "permissions": [
     "storage"
@@ -57,12 +57,20 @@
         "pdf-viewer.css",
         "pdf-viewer.mjs",
         "pptx-viewer.mjs",
+        "ppt-viewer.mjs",
+        "word-viewer.mjs",
         "brand.js",
         "vendor/pdf.mjs",
         "vendor/pdf.worker.mjs",
         "vendor/cmaps/*",
         "vendor/standard_fonts/*",
         "vendor/pptx-renderer.browser.mjs",
+        "vendor/pptjs/pptjs.mjs",
+        "vendor/docx/*.mjs",
+        "vendor/msdoc/*",
+        "vendor/msdoc/modules/core/*",
+        "vendor/msdoc/modules/msdoc/*",
+        "vendor/msdoc/modules/render/*",
         "captcha-model.json"
       ],
       "matches": [
@@ -95,7 +103,7 @@
   },
   "browser_specific_settings": {
     "gecko": {
-      "id": "vtop-command@sid-1524",
+      "id": "{da7a1fc0-9e4b-49e7-9e37-bb4fb5c02cd1}",
       "strict_min_version": "128.0",
       "data_collection_permissions": {
         "required": [

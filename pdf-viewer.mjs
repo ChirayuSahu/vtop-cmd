@@ -122,15 +122,23 @@ window.addEventListener('message',async event=>{
  received=true;notify('viewer-received');
  const documentType=event.data.documentType||'pdf';
  document.documentElement.dataset.type=documentType;
- if(documentType==='pptx'){
-  status('Opening presentation…');
+ if(['pptx','ppt','docx','doc'].includes(documentType)){
+  status(documentType==='pptx'||documentType==='ppt'?'Opening presentation…':'Opening document…');
   try{
-   const {renderPptx}=await import('./pptx-viewer.mjs');
-   await renderPptx(event.data.bytes,container);
+   if(documentType==='pptx'){
+    const {renderPptx}=await import('./pptx-viewer.mjs');
+    await renderPptx(event.data.bytes,container);
+   }else if(documentType==='ppt'){
+    const {renderLegacyPpt}=await import('./ppt-viewer.mjs');
+    await renderLegacyPpt(event.data.bytes,container);
+   }else{
+    const {renderWord}=await import('./word-viewer.mjs');
+    await renderWord(event.data.bytes,container,documentType);
+   }
    status('');notify('viewer-loaded');
   }catch(error){
-   console.error('Unable to render PowerPoint presentation.',error);
-   status('This presentation could not be opened. You can still download the original using Download above.');
+   console.error('Unable to render document.',error);
+   status('This document could not be opened. You can still download the original using Download above.');
    notify('viewer-error');
   }
   return;

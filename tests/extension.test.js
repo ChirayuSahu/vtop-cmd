@@ -80,9 +80,9 @@ test('manifest has only local preference storage and VTOP-only content scope, al
   assert.deepEqual(manifest.content_scripts[0].matches,['https://vtop.vit.ac.in/vtop/*']);
   for(const file of [...manifest.content_scripts[0].js,...manifest.content_scripts[0].css]) assert.ok(fs.existsSync(__dirname+'/../'+file));
   const viewerResources=manifest.web_accessible_resources.find(resource=>resource.resources.includes('pdf-viewer.html')).resources;
-  for(const file of ['pptx-viewer.mjs','vendor/pptx-renderer.browser.mjs']) assert.ok(viewerResources.includes(file));
-  assert.ok(fs.existsSync(__dirname+'/../pptx-viewer.mjs'));
-  for(const file of [...manifest.content_scripts.flatMap(script=>script.js),'pdf-viewer.mjs','pptx-viewer.mjs']) {
+  for(const file of ['pptx-viewer.mjs','ppt-viewer.mjs','word-viewer.mjs','vendor/pptx-renderer.browser.mjs','vendor/pptjs/pptjs.mjs','vendor/docx/*.mjs','vendor/msdoc/modules/core/*','vendor/msdoc/modules/msdoc/*','vendor/msdoc/modules/render/*']) assert.ok(viewerResources.includes(file));
+  for(const file of ['pptx-viewer.mjs','ppt-viewer.mjs','word-viewer.mjs']) assert.ok(fs.existsSync(__dirname+'/../'+file));
+  for(const file of [...manifest.content_scripts.flatMap(script=>script.js),'pdf-viewer.mjs','pptx-viewer.mjs','ppt-viewer.mjs','word-viewer.mjs']) {
     const source=fs.readFileSync(__dirname+'/../'+file,'utf8');
     assert.doesNotMatch(source,/\b(?:innerHTML|outerHTML|insertAdjacentHTML)\b/,file);
   }

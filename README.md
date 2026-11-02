@@ -17,29 +17,35 @@ It works only on `https://vtop.vit.ac.in/vtop/*`. It reads VTOP the way you do, 
 
 ## Install
 
-The extension isn't published in an add-on store yet, so you load it yourself. This repository builds Chrome/Brave and Firefox/Zen packages from the same runtime, including the local PowerPoint viewer.
+This repository builds Chrome/Brave and Firefox/Zen packages from the same runtime, including local Word and PowerPoint viewers.
 
 ### Chrome and Brave
 
-Run `npm run build`, open `chrome://extensions` (or `brave://extensions`), enable **Developer mode**, select **Load unpacked**, and choose `dist/vtop-command/`. This package includes local PDF and `.pptx` previews and the Download option.
+Run `npm run build`, open `chrome://extensions` (or `brave://extensions`), enable **Developer mode**, select **Load unpacked**, and choose `dist/vtop-command/`. This package includes local PDF, Word and PowerPoint previews and the Download option.
 
 ### Firefox and Zen Browser
 
-#### Load the extension directly from source
+#### Install from Firefox Add-ons
 
-1. Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on…**, and select the repository's top-level `manifest.json`.
-2. Open VTOP and sign in as usual.
+After the add-on is approved and published, install it from its Firefox Add-ons listing. Published add-ons are signed by Mozilla and remain installed after Firefox closes.
 
-The top-level manifest and its tracked files are a complete Firefox extension. The PDF.js and PowerPoint renderers, including their required assets, are included under `vendor/`; no build step, dependency installation, or `dist/` folder is needed to load it.
+#### Permanent install from a GitHub release
+
+1. Open Firefox's **Add-ons and themes** page (`about:addons`).
+2. Open the gear menu and choose **Install Add-on From File…**.
+3. Download `vtop-command-1.2.1.xpi` from the [1.2.1 GitHub release](https://github.com/ChirayuSahu/vtop-cmd/releases/tag/v1.2.1), select it, and confirm the installation.
+4. Open VTOP and sign in as usual.
+
+The signed XPI installs as a regular add-on and remains installed after Firefox closes.
 
 To create a distributable ZIP instead, build the Firefox package:
    ```bash
    npm ci
-   npm run build
+   npm run build -- --browser firefox
    ```
-This creates `dist/vtop-command/` and `dist/vtop-command-1.2.0.zip` for Chrome/Brave, plus `dist/vtop-command-firefox/` and `dist/vtop-command-firefox-1.2.0.zip` for Firefox/Zen. To build only one browser, use `npm run build -- --browser chrome` or `npm run build -- --browser firefox`. Use this clean package for Mozilla signing; signed XPI files are kept out of the source repository.
+This creates `dist/vtop-command-firefox/` and `dist/vtop-command-firefox-1.2.1.zip`. The ZIP has `manifest.json` at its root and contains the complete Firefox extension. It is not itself a signed add-on. Upload this Firefox ZIP to the Firefox Add-ons developer page.
 
-Temporary add-ons are removed when Firefox closes. After updating the code, rebuild the relevant package, remove or reload the old add-on, and refresh VTOP.
+After updating the code, rebuild the relevant package, remove or reload the old add-on, and refresh VTOP.
 
 ---
 
@@ -137,14 +143,14 @@ Every dropdown in the extension's own windows (the semester picker, the CGPA cal
 
 ### Document previews
 
-VTOP's PDF and `.pptx` downloads, such as course materials and presentations, open in a built-in viewer instead of downloading straight away.
+VTOP's PDF, Word (`.doc` and `.docx`) and PowerPoint (`.ppt` and `.pptx`) downloads, such as course materials and presentations, open in a built-in viewer instead of downloading straight away.
 
 - **Reading:** scroll through all pages, or type a page number to jump to it.
 - **Zoom:** use ⌘/Ctrl + scroll, a trackpad pinch, ⌘/Ctrl + `+`/`−`, or the toolbar. ⌘/Ctrl + `0` or **Fit width** resets it.
 - **Download** saves the original file whenever you want it.
 - **Closing:** **Esc**, **Close** or a click outside closes the viewer.
 - **Password-protected PDFs** ask for the password inside the viewer.
-- **Presentations:** `.pptx` slides are rendered locally. Legacy `.ppt` files cannot be previewed, but remain available through **Download**.
+- **Documents and presentations:** `.docx` and legacy `.doc` documents, plus `.pptx` and legacy `.ppt` presentations, are rendered locally. Download always saves the original format.
 - **Bypass:** Shift-click a link to download it the normal way. Files that aren't supported preview types download as usual.
 
 The viewers and renderers are bundled with the extension, so documents are never sent to an outside service.
@@ -209,6 +215,27 @@ Your password, marks history and attendance are never saved by the extension.
 
 ## Development
 
+### Build environment and reproducible Firefox package
+
+The build is supported on Windows, macOS and Linux. It requires:
+
+- Node.js 24.x (Node.js 24.16.0 verified).
+- npm 11.x (npm 11.13.0 verified; included with Node.js).
+- Python 3.12 or newer (the CI build uses Python 3.12). The build uses only Python's standard library.
+
+Install Node.js from [nodejs.org](https://nodejs.org/) and Python from [python.org](https://www.python.org/downloads/), then run these commands from the source directory:
+
+```bash
+npm ci
+npm run check
+npm test
+npm run build -- --browser firefox
+```
+
+The build script (`scripts/build.cjs` and `scripts/build.py`) copies the Firefox runtime files, vendor assets and icons into `dist/vtop-command-firefox/`, then creates `dist/vtop-command-firefox-1.2.1.zip`. The package ZIP has `manifest.json` at its root. Extension source files are used as written; the only bundled third-party code is under `vendor/` and is distributed with its license/notices. The build does not transpile, concatenate or minify extension source. `npm run source` creates the self-contained `dist/vtop-command-source-1.2.1.zip` source submission archive.
+
+To load the exact built extension locally, open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on…**, and select `dist/vtop-command-firefox/manifest.json`.
+
 ```bash
 npm ci
 npm test       # unit and DOM tests (Node's test runner + jsdom)
@@ -223,8 +250,8 @@ Tests use made-up data shaped like VTOP's real markup. No account data is includ
 - **Every pull request** runs `.github/workflows/ci.yml`. It runs the syntax check, the tests and both builds, and lints the Firefox package with Mozilla's `web-ext lint`. The built ZIPs are attached to the run. `main` requires this check to pass before a pull request can merge.
 - **Releases** come from tags. Bump the version in `manifest.json` and `package.json`, merge that to `main`, then push a matching tag:
   ```bash
-  git tag v1.2.0 origin/main
-  git push origin v1.2.0
+  git tag v1.2.1 origin/main
+  git push origin v1.2.1
   ```
   `.github/workflows/release.yml` checks that the tag matches both versions and is on `main`, rebuilds and tests, then publishes a GitHub release with the Chrome and Firefox ZIPs.
 
@@ -246,6 +273,6 @@ Tests use made-up data shaped like VTOP's real markup. No account data is includ
 | `cgpa.js`, `cgpa-ui.js` | Grade History and Time Table readers, CGPA maths and calculator |
 | `form-presets.js` | Form presets and their editor |
 | `page-runtime.js`, `page-actions.js` | Waits for VTOP to be idle and runs automatic actions one at a time |
-| `pdf-bridge.js`, `pdf-preview.js`, `pdf-viewer.*` | PDF download interception, preview window and PDF.js viewer |
+| `pdf-bridge.js`, `pdf-preview.js`, `pdf-viewer.*`, `ppt-viewer.mjs`, `word-viewer.mjs` | Document download interception and local PDF, Word and presentation viewers |
 | `extension-action.js` | Toolbar button |
 | `deadline-cache.js`, `deadline-cache-client.js` | Account-scoped session-cache relay through the background script, used by both browsers (Firefox content scripts can't reach session storage directly) |

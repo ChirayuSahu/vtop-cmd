@@ -3,6 +3,9 @@
 body{display:flex;flex-direction:column;margin:0;background:var(--surface,#fff);color:var(--text,#182438);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
 nav{flex-shrink:0;display:flex;align-items:center;gap:8px;padding:10px 22px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);flex-wrap:wrap;color:var(--muted);font-size:12px;letter-spacing:.3px}
 :root[data-type=pptx] nav{display:none}
+:root[data-type=ppt] nav{display:none}
+:root[data-type=docx] nav{display:none}
+:root[data-type=doc] nav{display:none}
 button,input{font:inherit;font-size:12px;border:1px solid var(--line);border-radius:8px;padding:5px 8px;background:transparent;color:var(--muted)}
 button{cursor:pointer;white-space:nowrap}button:not(:disabled):hover{background:var(--hover);color:var(--text)}
 button:disabled,input:disabled{opacity:.5;cursor:default}

@@ -1,20 +1,58 @@
-"""Package only the runtime extension files; no account data or development fixtures."""
+"""Build browser extension packages and a reproducible source submission archive."""
 from pathlib import Path
 import json
 import shutil
 import zipfile
 import struct
 import argparse
+import subprocess
 from browser_manifest import browser_manifest
 
 root = Path(__file__).resolve().parent.parent
-files = ['command-history.js', 'captcha-solver.js', 'captcha.js', 'captcha-model.json', 'licenses/vtop-captcha-solver.txt', 'extension-background.js', 'deadline-cache.js', 'deadline-cache-client.js', 'manifest.json', 'brand.js', 'combobox.js', 'search-select.js', 'form-presets.js', 'navigation.js', 'semesters.js', 'enhancements.js', 'content.js', 'dark-readability.js', 'cgpa.js', 'cgpa-ui.js', 'page-enhancements.js', 'page-actions.js', 'page-runtime.js', 'pdf-bridge.js', 'pdf-preview.js', 'extension-action.js', 'pdf-viewer.html', 'pdf-viewer.css', 'pdf-viewer.mjs', 'pptx-viewer.mjs', 'dark.css', 'README.md', 'docs/dark-mode-audit.md']
+files = ['command-history.js', 'captcha-solver.js', 'captcha.js', 'captcha-model.json', 'licenses/vtop-captcha-solver.txt', 'extension-background.js', 'deadline-cache.js', 'deadline-cache-client.js', 'manifest.json', 'brand.js', 'combobox.js', 'search-select.js', 'form-presets.js', 'navigation.js', 'semesters.js', 'enhancements.js', 'content.js', 'dark-readability.js', 'cgpa.js', 'cgpa-ui.js', 'page-enhancements.js', 'page-actions.js', 'page-runtime.js', 'pdf-bridge.js', 'pdf-preview.js', 'extension-action.js', 'pdf-viewer.html', 'pdf-viewer.css', 'pdf-viewer.mjs', 'pptx-viewer.mjs', 'ppt-viewer.mjs', 'word-viewer.mjs', 'dark.css', 'README.md', 'docs/dark-mode-audit.md']
 source_manifest = json.loads((root / 'manifest.json').read_text())
 assert source_manifest['manifest_version'] == 3
 assert source_manifest.get('background') == {'scripts': ['navigation.js', 'command-history.js', 'deadline-cache.js', 'extension-action.js']}
 parser = argparse.ArgumentParser()
 parser.add_argument('--browser', choices=['chrome', 'firefox', 'all'], default='all')
-selected = parser.parse_args().browser
+parser.add_argument('--source-only', action='store_true')
+options = parser.parse_args()
+selected = options.browser
+def build_source_archive():
+    version = source_manifest['version']
+    archive = root / 'dist' / f'vtop-command-source-{version}.zip'
+    source_root = f'vtop-command-source-{version}'
+    archive.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        ['git', 'archive', '--format=zip', f'--prefix={source_root}/', '-o', str(archive), 'HEAD'],
+        cwd=root,
+        check=True,
+    )
+    with zipfile.ZipFile(archive) as bundle:
+        assert bundle.testzip() is None
+        prefix = f'{source_root}/'
+        names = {
+            name[len(prefix):] for name in bundle.namelist()
+            if name.startswith(prefix) and not name.endswith('/')
+        }
+        tracked = set(subprocess.run(
+            ['git', 'ls-tree', '-r', '--name-only', '-z', 'HEAD'],
+            cwd=root,
+            check=True,
+            capture_output=True,
+        ).stdout.decode('utf-8').split('\0')) - {''}
+        assert names <= tracked, f'Archive contains untracked files: {sorted(names - tracked)}'
+        required = {'README.md', 'package.json', 'package-lock.json', 'manifest.json',
+                    'scripts/build.cjs', 'scripts/build.py', 'scripts/browser_manifest.py'}
+        assert required <= names, f'Missing source files: {sorted(required - names)}'
+        assert not any(Path(name).suffix.lower() in {'.xpi', '.zip'} for name in names)
+    print(f'Built {archive}')
+    print('VERDICT: PASS')
+
+if options.source_only:
+    build_source_archive()
+    raise SystemExit(0)
+
 browsers = ['chrome', 'firefox'] if selected == 'all' else [selected]
 for browser in browsers:
     manifest = browser_manifest(source_manifest, browser)
@@ -46,13 +84,14 @@ for browser in browsers:
     archive = root / 'dist' / f"{package_name}-{manifest['version']}.zip"
     with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as bundle:
         for name in files:
-            bundle.write(output / name, f'{package_name}/{name}')
+            bundle.write(output / name, name)
         for directory in [vendor, output / 'icons']:
             for path in directory.rglob('*'):
                 if path.is_file():
-                    bundle.write(path, package_name + '/' + path.relative_to(output).as_posix())
+                    bundle.write(path, path.relative_to(output).as_posix())
     with zipfile.ZipFile(archive) as bundle:
         assert bundle.testzip() is None
+        assert 'manifest.json' in bundle.namelist(), 'Package manifest must be at the archive root'
         for name in bundle.namelist():
             parts = Path(name).parts
             assert not any(part in {'.git', 'node_modules', 'dist'} for part in parts), name
