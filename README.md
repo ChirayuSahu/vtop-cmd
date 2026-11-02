@@ -29,12 +29,14 @@ Run `npm run build`, open `chrome://extensions` (or `brave://extensions`), enabl
 
 After the add-on is approved and published, install it from its Firefox Add-ons listing. Published add-ons are signed by Mozilla and remain installed after Firefox closes.
 
-#### Temporary install from source
+#### Permanent install from the provided XPI
 
-1. Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on…**, and select the repository's top-level `manifest.json`.
-2. Open VTOP and sign in as usual.
+1. Open Firefox's **Add-ons and themes** page (`about:addons`).
+2. Open the gear menu and choose **Install Add-on From File…**.
+3. Select the repository's top-level `vtop-command-1.2.0.xpi` and confirm the installation.
+4. Open VTOP and sign in as usual.
 
-The top-level manifest and its tracked files are a complete Firefox extension. The PDF.js and PowerPoint renderers, including their required assets, are included under `vendor/`; no build step, dependency installation, or `dist/` folder is needed to load it.
+The signed XPI installs as a regular add-on and remains installed after Firefox closes. The top-level manifest and its tracked files are also a complete Firefox extension; the PDF.js and PowerPoint renderers and required assets are included under `vendor/`.
 
 To create a distributable ZIP instead, build the Firefox package:
    ```bash
