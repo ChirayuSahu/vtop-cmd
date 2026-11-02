@@ -1,8 +1,18 @@
 // Small illustrations of the extension's UI, drawn with HTML so no real student data can appear.
 
 export function Logo({ size = 28, className = "" }: { size?: number; className?: string }) {
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src="/icon.svg" alt="" width={size} height={size} className={`rounded-[24%] ${className}`} />;
+  return (
+    // A tiny SVG needs no image optimisation.
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src="/icon.svg"
+      alt=""
+      width={size}
+      height={size}
+      draggable={false}
+      className={`rounded-[24%] select-none ${className}`}
+    />
+  );
 }
 
 // The key phrase in a muted description.
