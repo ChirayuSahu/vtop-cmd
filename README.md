@@ -23,6 +23,7 @@ Download the files from the [latest release](https://github.com/ChirayuSahu/vtop
 ## Features
 
 - **Command menu:** press ⌘K / Ctrl+K on any VTOP page to search and open any page, with aliases (`DA`, `CGPA`, `marks`) and typo-tolerant matching.
+- **Personal ordering:** frequently and recently selected commands rise to the top. Usage weight halves every seven days; typed searches still prioritize text matches, and all commands remain available.
 - **Dark mode:** covers the whole portal and keeps text readable. Images, charts and documents keep their colours.
 - **Default semester:** choose your semester once and it's selected automatically when a page first loads. Registration, payment and similar pages are never touched.
 - **Attendance:** shows how many classes you need to reach 75%, or how many you can still miss.
@@ -39,6 +40,7 @@ Download the files from the [latest release](https://github.com/ChirayuSahu/vtop
 - **Read-only.** It never submits forms, uploads files, registers, pays or changes anything on your account.
 - **VTOP's own requests only.** Everything it sends is a request VTOP's own menus and buttons already make, with your existing session. Automatic requests run one at a time, and results are cached so VTOP isn't asked twice.
 - **Nothing leaves your browser.** No analytics, tracking or remote code. Your password is never seen or stored.
+- **Command history:** up to 300 command IDs, weighted counts and last-used timestamps stay in `storage.local`, shared within this browser profile across tabs and restarts. Older entries are evicted at the limit; removing the extension clears its history.
 - **Stored locally:** your theme, default semester, presets and grade predictions in browser storage, and a short-lived assignment cache that clears on upload or when the browser closes.
 
 No extension can promise how VIT will treat it, but this one is designed to look like a student clicking through the portal, and to be lighter than that.

@@ -84,15 +84,42 @@
     return i === q.length ? 200 - (label.length - q.length) : 0;
   }
 
-  function search(commands, query, recent = []) {
-    return commands.map((command, index) => ({ command, index, score: score(command, query) }))
+  // Exponentially decayed visits combine frequency and recency. A visit loses
+  // half its weight after a week, so an old favorite cannot dominate forever.
+  const USAGE_KEY = 'commandUsageV1';
+  const HALF_LIFE = 7 * 24 * 60 * 60 * 1000;
+  const MAX_USAGE = 300;
+  const validUsageId = id => typeof id === 'string' && id.length > 0 && id.length <= 300 &&
+    !['__proto__', 'constructor', 'prototype'].includes(id) && !/[\x00-\x1f?#]/.test(id);
+  function usageScore(entry, now = Date.now()) {
+    if (!Number.isFinite(entry?.weight) || entry.weight <= 0 ||
+        !Number.isFinite(entry?.lastUsed) || entry.lastUsed < 0) return 0;
+    return Math.min(entry.weight, 10000) * Math.pow(0.5, Math.max(0, now - entry.lastUsed) / HALF_LIFE);
+  }
+  function sanitizeUsage(value, now = Date.now()) {
+    const entries = value && typeof value === 'object' && !Array.isArray(value) ? Object.entries(value) : [];
+    return Object.fromEntries(entries.filter(([id, entry]) => validUsageId(id) && usageScore(entry, now) > 0)
+      .map(([id, entry]) => [id, { weight: Math.min(entry.weight, 10000), lastUsed: Math.min(entry.lastUsed, now) }])
+      .sort((a, b) => b[1].lastUsed - a[1].lastUsed || usageScore(b[1], now) - usageScore(a[1], now))
+      .slice(0, MAX_USAGE));
+  }
+  function recordUsage(value, id, now = Date.now()) {
+    const usage = sanitizeUsage(value, now);
+    if (!validUsageId(id)) return usage;
+    usage[id] = { weight: Math.min(10000, usageScore(usage[id], now) + 1), lastUsed: now };
+    return sanitizeUsage(usage, now);
+  }
+
+  function search(commands, query, usage = {}, now = Date.now()) {
+    const history = sanitizeUsage(usage, now);
+    return commands.map((command, index) => ({ command, index, score: score(command, query),
+      usage: usageScore(history[command.id], now), lastUsed: history[command.id]?.lastUsed || 0 }))
       .filter(item => item.score > 0)
-      .sort((a, b) => b.score - a.score ||
-        (!normalize(query) ? (recent.indexOf(a.command.id) < 0 ? 999 : recent.indexOf(a.command.id)) -
-          (recent.indexOf(b.command.id) < 0 ? 999 : recent.indexOf(b.command.id)) : 0) || a.index - b.index)
+      // Text relevance wins; personal usage breaks ties, including the empty query.
+      .sort((a, b) => b.score - a.score || b.usage - a.usage || b.lastUsed - a.lastUsed || a.index - b.index)
       .map(item => item.command);
   }
-  const api = { discover, search, normalize };
+  const api = { discover, search, normalize, USAGE_KEY, validUsageId, usageScore, sanitizeUsage, recordUsage };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.VtopNavigation = api;
 })(globalThis);

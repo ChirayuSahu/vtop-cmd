@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   if (document.getElementById('vtop-command-root')) return;
-  const { discover, search } = globalThis.VtopNavigation;
+  const { discover, search, USAGE_KEY, sanitizeUsage, recordUsage } = globalThis.VtopNavigation;
   const semesters = globalThis.VtopSemesters;
   const host = document.createElement('div');
   host.id = 'vtop-command-root';
@@ -51,7 +51,7 @@
   const dialog = shadow.querySelector('dialog');
   const input = shadow.querySelector('.search input');
   const list = shadow.querySelector('.results');
-  let commands = [], filtered = [], selected = 0, recent = [], previousFocus, dark = false;
+  let commands = [], filtered = [], selected = 0, usage = {}, usageRevision = 0, previousFocus, dark = false;
   let defaultSemester = null, preferencesReady = false, prompted = false, semesterView = false;
   // The default semester is applied once per page visit. A visit starts on load or when a VTOP page is opened from
   // its menu (or this one); later re-renders of the same page, e.g. after you pick another semester, keep your choice.
@@ -226,6 +226,24 @@
     setTheme(!dark);
     try { chrome.storage.local.set({ darkMode: dark })?.catch(() => {}); } catch { /* Extension reloaded. */ }
   }
+  function rememberCommand(id) {
+    usage = recordUsage(usage, id);
+    const revision = ++usageRevision;
+    try {
+      chrome.runtime.sendMessage({ type: 'vtop-command-used', id }).then(result => {
+        if (result?.history && revision === usageRevision) usage = sanitizeUsage(result.history);
+      }).catch(() => {}); // A reloaded/unavailable extension still has in-tab ranking.
+    } catch { /* Preview without the extension runtime. */ }
+  }
+  // A late startup read must not replace a newer selection or another tab's update.
+  try {
+    const revision = usageRevision;
+    chrome.storage.local.get(USAGE_KEY).then(settings => {
+      if (revision !== usageRevision) return;
+      usage = sanitizeUsage(settings[USAGE_KEY]);
+      if (dialog.open && !semesterView && selected === 0) render();
+    }).catch(() => {});
+  } catch { /* Ranking works in memory if storage is unavailable. */ }
   setTheme(false);
   try {
     // Filter memory was removed; drop what it had saved.
@@ -240,6 +258,10 @@
       preferencesReady = true; scanSemesters();
     }).catch(() => { preferencesReady = true; scanSemesters(); });
     chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes[USAGE_KEY]) {
+        usage = sanitizeUsage(changes[USAGE_KEY].newValue); usageRevision++;
+        // Apply on the next render, without moving a row underneath the pointer.
+      }
       if (area === 'local' && changes.darkMode) setTheme(changes.darkMode.newValue === true);
       if (area === 'local' && Array.isArray(changes.knownSemesters?.newValue?.list)) {
         rememberSemesters(changes.knownSemesters.newValue.list, { persist: false });
@@ -277,10 +299,10 @@
     } else input.removeAttribute('aria-activedescendant');
   }
   function render() {
-    filtered = search(allCommands(), input.value, recent);
+    filtered = search(allCommands(), input.value, usage);
     selected = 0;
     list.replaceChildren();
-    shadow.querySelector('.section').textContent = input.value.trim() ? 'SEARCH RESULTS' : recent.length ? 'RECENT & ALL PAGES' : 'ALL PAGES';
+    shadow.querySelector('.section').textContent = input.value.trim() ? 'SEARCH RESULTS' : Object.keys(usage).length ? 'FREQUENT & RECENT' : 'ALL PAGES';
     shadow.querySelector('.count').textContent = `${filtered.length} ${filtered.length === 1 ? 'result' : 'results'}`;
     if (!commands.length && !input.value) {
       const message = document.createElement('p'); message.className = 'empty';
@@ -316,11 +338,11 @@
   host.addEventListener('vtop-cgpa-back', () => { showPages(); render(); input.focus(); });
   function activate(index) {
     const command = filtered[index]; if (!command) return;
-    if (command.action) { command.action(); return; }
+    if (command.action) { rememberCommand(command.id); command.action(); return; }
     // Re-resolve after AJAX replacements. Never replay a stale route or submit a page form.
     const current = discover(document).find(item => item.id === command.id);
     if (!current) { commands = discover(document); render(); return; }
-    recent = [command.id, ...recent.filter(id => id !== command.id)].slice(0, 8);
+    rememberCommand(command.id);
     close();
     if (globalThis.VtopPageActions) globalThis.VtopPageActions.navigate(() => discover(document).find(item => item.id === command.id)?.element);
     else current.element.click();
