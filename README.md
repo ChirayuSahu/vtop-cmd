@@ -25,7 +25,15 @@ Run `npm run build`, open `chrome://extensions` (or `brave://extensions`), enabl
 
 ### Firefox and Zen Browser
 
-#### Load the extension directly from source
+#### Use the provided XPI
+
+1. Open `about:debugging#/runtime/this-firefox` and choose **Load Temporary Add-on…**.
+2. Select the repository's top-level `vtop_command-1.2.0.xpi`.
+3. Open VTOP and sign in as usual.
+
+This loads the provided XPI as a temporary add-on; Firefox removes temporary add-ons when it closes.
+
+#### Or load the extension directly from source
 
 1. Open `about:debugging#/runtime/this-firefox`, choose **Load Temporary Add-on…**, and select the repository's top-level `manifest.json`.
 2. Open VTOP and sign in as usual.
@@ -37,9 +45,9 @@ To create a distributable ZIP instead, build the Firefox package:
    npm ci
    npm run build
    ```
-This creates `dist/vtop-command/` and `dist/vtop-command-1.2.0.zip` for Chrome/Brave, plus `dist/vtop-command-firefox/` and `dist/vtop-command-firefox-1.2.0.zip` for Firefox/Zen. To build only one browser, use `npm run build -- --browser chrome` or `npm run build -- --browser firefox`. Use this clean package for Mozilla signing; signed XPI files are kept out of the source repository.
+This creates `dist/vtop-command/` and `dist/vtop-command-1.2.0.zip` for Chrome/Brave, plus `dist/vtop-command-firefox/` and `dist/vtop-command-firefox-1.2.0.zip` for Firefox/Zen. To build only one browser, use `npm run build -- --browser chrome` or `npm run build -- --browser firefox`. The build creates ZIP packages, not an XPI; use the provided XPI above to load the extension temporarily in Firefox.
 
-Temporary add-ons are removed when Firefox closes. After updating the code, rebuild the relevant package, remove or reload the old add-on, and refresh VTOP.
+After updating the code, rebuild the relevant package, remove or reload the old add-on, and refresh VTOP.
 
 ---
 
