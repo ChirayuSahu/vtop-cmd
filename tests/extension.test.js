@@ -1,8 +1,9 @@
 const { test } = require('node:test');
+const {packaged}=require('./paths');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const { JSDOM } = require('jsdom');
-const { discover, search } = require('../navigation');
+const { discover, search } = require('../build/navigation');
 const fixture = fs.readFileSync(__dirname + '/fixture.html', 'utf8');
 function setup({ signedIn = true, savedDark = false, savedSemester, savedKnown, savedShortcut, fetch, html, platform } = {}) {
   const dom = new JSDOM(html || (signedIn ? fixture : '<!doctype html><html><body><form>Sign in</form></body></html>'), { runScripts: 'outside-only', url: 'https://vtop.vit.ac.in/vtop/content' });
@@ -13,11 +14,11 @@ function setup({ signedIn = true, savedDark = false, savedSemester, savedKnown, 
   w.chrome = { storage: { local: { get: async () => ({ darkMode: savedDark, defaultSemester: savedSemester, knownSemesters: savedKnown, commandShortcut: savedShortcut }), set: async value => writes.push(value), remove: async keys => removals.push(keys) }, onChanged: { addListener(listener) { (w.storageListeners ||= []).push(listener); } } } };
   if (fetch) w.fetch = fetch;
   if (platform) Object.defineProperty(w.navigator, 'platform', { value: platform, configurable: true });
-  w.eval(fs.readFileSync(__dirname + '/../brand.js', 'utf8'));
-  w.eval(fs.readFileSync(__dirname + '/../combobox.js', 'utf8'));
-  w.eval(fs.readFileSync(__dirname + '/../navigation.js', 'utf8'));
-  w.eval(fs.readFileSync(__dirname + '/../semesters.js', 'utf8'));
-  w.eval(fs.readFileSync(__dirname + '/../content.js', 'utf8'));
+  w.eval(fs.readFileSync(__dirname + '/../build/brand.js', 'utf8'));
+  w.eval(fs.readFileSync(__dirname + '/../build/combobox.js', 'utf8'));
+  w.eval(fs.readFileSync(__dirname + '/../build/navigation.js', 'utf8'));
+  w.eval(fs.readFileSync(__dirname + '/../build/semesters.js', 'utf8'));
+  w.eval(fs.readFileSync(__dirname + '/../build/content.js', 'utf8'));
   const shadow = w.document.querySelector('#vtop-command-root').shadowRoot;
   const key = (value, options = {}, target = w.document) => target.dispatchEvent(new w.KeyboardEvent('keydown', { key: value, bubbles: true, cancelable: true, ...options }));
   const query = value => { const input = shadow.querySelector('.search input'); input.value = value; input.dispatchEvent(new w.Event('input')); };
@@ -85,29 +86,29 @@ test('empty results, signed-out state, and theme restore/toggle without persisti
   dom.window.close();
 });
 test('manifest has only local preference storage and VTOP-only content scope, all shipped files exist',()=>{
-  const manifest=JSON.parse(fs.readFileSync(__dirname+'/../manifest.json'));
+  const manifest=JSON.parse(fs.readFileSync(__dirname+'/../static/manifest.json'));
   assert.equal(manifest.manifest_version,3); assert.deepEqual(manifest.permissions,['storage']);
   assert.deepEqual(manifest.host_permissions,['https://vtop.vit.ac.in/*']);
   assert.deepEqual(manifest.browser_specific_settings.gecko.data_collection_permissions,{required:['none']});
   assert.deepEqual(manifest.background,{scripts:['navigation.js','command-history.js','deadline-cache.js','extension-action.js']});
   assert.deepEqual(manifest.content_scripts[0].matches,['https://vtop.vit.ac.in/vtop/*']);
-  for(const file of [...manifest.content_scripts[0].js,...manifest.content_scripts[0].css]) assert.ok(fs.existsSync(__dirname+'/../'+file));
+  for(const file of [...manifest.content_scripts[0].js,...manifest.content_scripts[0].css]) assert.ok(fs.existsSync(packaged(file)));
   const viewerResources=manifest.web_accessible_resources.find(resource=>resource.resources.includes('pdf-viewer.html')).resources;
   for(const file of ['pptx-viewer.mjs','ppt-viewer.mjs','word-viewer.mjs','vendor/pptx-renderer.browser.mjs','vendor/pptjs/pptjs.mjs','vendor/docx/*.mjs','vendor/msdoc/modules/core/*','vendor/msdoc/modules/msdoc/*','vendor/msdoc/modules/render/*']) assert.ok(viewerResources.includes(file));
-  for(const file of ['pptx-viewer.mjs','ppt-viewer.mjs','word-viewer.mjs']) assert.ok(fs.existsSync(__dirname+'/../'+file));
+  for(const file of ['pptx-viewer.mjs','ppt-viewer.mjs','word-viewer.mjs']) assert.ok(fs.existsSync(packaged(file)));
   for(const file of [...manifest.content_scripts.flatMap(script=>script.js),'pdf-viewer.mjs','pptx-viewer.mjs','ppt-viewer.mjs','word-viewer.mjs']) {
-    const source=fs.readFileSync(__dirname+'/../'+file,'utf8');
+    const source=fs.readFileSync(packaged(file),'utf8');
     assert.doesNotMatch(source,/\b(?:innerHTML|outerHTML|insertAdjacentHTML)\b/,file);
   }
   for(const file of ['vendor/pptx-renderer.browser.mjs','vendor/pdf.worker.mjs']) {
-    const source=fs.readFileSync(__dirname+'/../'+file,'utf8');
+    const source=fs.readFileSync(packaged(file),'utf8');
     assert.doesNotMatch(source,/new Function\s*\(/,file);
     assert.doesNotMatch(source,/\.innerHTML\s*=/,file);
   }
 });
 test('extension UI markup strips scripts and executable attributes before insertion',()=>{
   const dom=new JSDOM('<!doctype html><html><body></body></html>',{runScripts:'outside-only'});
-  const w=dom.window;w.eval(fs.readFileSync(__dirname+'/../brand.js','utf8'));
+  const w=dom.window;w.eval(fs.readFileSync(__dirname+'/../build/brand.js','utf8'));
   const target=w.document.createElement('div');
   w.VtopBrand.setMarkup(target,'<button onclick="window.compromised=true">Safe text</button><script>window.compromised=true</script><a href="javascript:window.compromised=true">Link</a>');
   target.querySelector('button').click();
@@ -125,7 +126,7 @@ test('extension UI markup strips scripts and executable attributes before insert
   dom.window.close();
 });
 
-const semesters = require('../semesters');
+const semesters = require('../build/semesters');
 const semesterHTML = `<label for="semesterSubId">Semester</label><select id="semesterSubId" name="semesterSubId"><option value="">--Choose Semester--</option><option value="VL20262701">Fall Semester 2026-27</option><option value="VL20252605">Winter Semester 2025-26</option></select>`;
 const savedSemester = {value:'VL20262701',label:'Fall Semester 2026-27'};
 const flush = async () => { await Promise.resolve(); await Promise.resolve(); };

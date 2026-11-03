@@ -2,8 +2,8 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
-const { features, predict, validate, labels } = require('../captcha-solver');
-const bundled = require('../captcha-model.json');
+const { features, predict, validate, labels } = require('../build/captcha-solver');
+const bundled = require('../static/captcha-model.json');
 function image() {
   const data = new Uint8ClampedArray(32000); data.fill(255);
   for (let position = 0; position < 6; position++) {
@@ -20,7 +20,7 @@ function simpleModel() {
 test('bundled public model has pinned provenance, the correct alphabet and validated dimensions', () => {
   assert.equal(validate(bundled), bundled);
   assert.equal(bundled.source.revision, 'b245a4b5d9ead1ffcc1fd6bafc98ef59815050bc');
-  assert.ok(fs.readFileSync(__dirname + '/../licenses/vtop-captcha-solver.txt', 'utf8').includes('Copyright (c) 2025 Yuva Yashvin'));
+  assert.ok(fs.readFileSync(__dirname + '/../static/licenses/vtop-captcha-solver.txt', 'utf8').includes('Copyright (c) 2025 Yuva Yashvin'));
   assert.throws(() => validate({ ...bundled, labels: 'wrong' }));
   assert.throws(() => validate({ ...bundled, biases: [NaN] }));
 });
@@ -47,7 +47,7 @@ test('model loads only from its packaged extension URL and is cached in memory',
   const context = { AbortController, setTimeout, clearTimeout, Uint8ClampedArray, Float64Array, chrome: { runtime: { getURL: path => 'chrome-extension://local/' + path } }, fetch: async url => {
     calls++; assert.equal(url, 'chrome-extension://local/captcha-model.json'); return { ok: true, json: async () => simpleModel() };
   } };
-  vm.createContext(context); vm.runInContext(fs.readFileSync(__dirname + '/../captcha-solver.js', 'utf8'), context);
+  vm.createContext(context); vm.runInContext(fs.readFileSync(__dirname + '/../build/captcha-solver.js', 'utf8'), context);
   assert.equal(calls, 0);
   assert.equal((await context.VtopCaptchaSolver.read(image())).text, 'AAAAAA');
   await context.VtopCaptchaSolver.read(image()); assert.equal(calls, 1);
@@ -55,12 +55,12 @@ test('model loads only from its packaged extension URL and is cached in memory',
 test('a failed model load can recover on the next image', async () => {
   let calls = 0;
   const context = { AbortController, setTimeout, clearTimeout, chrome: { runtime: { getURL: path => path } }, fetch: async () => ({ ok: ++calls > 1, json: async () => simpleModel() }) };
-  vm.createContext(context); vm.runInContext(fs.readFileSync(__dirname + '/../captcha-solver.js', 'utf8'), context);
+  vm.createContext(context); vm.runInContext(fs.readFileSync(__dirname + '/../build/captcha-solver.js', 'utf8'), context);
   await assert.rejects(context.VtopCaptchaSolver.read(image()));
   assert.equal((await context.VtopCaptchaSolver.read(image())).text, 'AAAAAA');
 });
 test('manifest ships the local model and does not retain OCR workers or additional permissions', () => {
-  const manifest = require('../manifest.json');
+  const manifest = require('../static/manifest.json');
   assert.deepEqual(manifest.permissions, ['storage']);
   assert.ok(manifest.content_security_policy.extension_pages.includes("script-src 'self';"));
   const scripts = manifest.content_scripts.flatMap(group => group.js);

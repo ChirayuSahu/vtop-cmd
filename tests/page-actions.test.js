@@ -9,7 +9,7 @@ function setup(){
  const requests=[];w.fetch=()=>new Promise((resolve,reject)=>requests.push({resolve:()=>resolve({ok:true}),reject}));
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
  w.chrome={storage:{local:{get:async()=>({defaultSemester:{value:'S1',label:'Fall Semester 2026-27'}}),set:async()=>{}},onChanged:{addListener(){}}}};
- function load(file){w.eval(fs.readFileSync(__dirname+'/../'+file,'utf8'));}
+ function load(file){w.eval(fs.readFileSync(__dirname+'/../build/'+file,'utf8'));}
  for(const file of ['navigation.js','semesters.js','page-runtime.js','page-actions.js'])load(file);
  function block(){const overlay=w.document.createElement('div');overlay.className='blockUI blockOverlay';w.document.body.append(overlay);return overlay;}
  return{dom,w,requests,load,block};
@@ -61,7 +61,7 @@ test('automatic selection waits for fetch response bodies, not just response hea
  dom.window.close();
  const other=new JSDOM('<select><option value="">Choose</option><option value="S1">Fall Semester 2026-27</option></select>',{runScripts:'outside-only',url:'https://vtop.vit.ac.in/vtop/content'}),page=other.window;
  page.fetch=async()=>new Response(new ReadableStream({start(controller){bodyController=controller;}}));
- for(const file of ['page-runtime.js','page-actions.js'])page.eval(fs.readFileSync(__dirname+'/../'+file,'utf8'));
+ for(const file of ['page-runtime.js','page-actions.js'])page.eval(fs.readFileSync(__dirname+'/../build/'+file,'utf8'));
  const response=await page.fetch('/slow-body');const select=page.document.querySelector('select');select.addEventListener('change',()=>changes++);
  const action=page.VtopPageActions.change(select,'S1');await pause(150);assert.equal(changes,0);
  bodyController.enqueue(new TextEncoder().encode('loaded'));bodyController.close();await response.text();assert.equal(await action,true);assert.equal(changes,1);other.window.close();

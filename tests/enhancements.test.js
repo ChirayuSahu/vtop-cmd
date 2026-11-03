@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {JSDOM}=require('jsdom');
-const api=require('../enhancements');
+const api=require('../build/enhancements');
 const root=__dirname+'/../';
 const semester='<select id="semesterSubId"><option value="S1">Fall Semester 2026-27</option></select>';
 const course='<select id="courseId"><option value="">Choose course</option><option value="C1">Course A</option><option value="C2">Course B</option></select>';
@@ -14,7 +14,7 @@ function setup(html,settings={},fetch,session){
   ...(session?{session:{get:async()=>JSON.parse(JSON.stringify(session.data)),set:async v=>{Object.assign(session.data,JSON.parse(JSON.stringify(v)));session.writes.push(JSON.parse(JSON.stringify(v)));}}}:{})}};
  if(session?.runtime){w.chrome.runtime=session.runtime;delete w.chrome.storage.session;}
  if(fetch)w.fetch=fetch;
- for(const file of ['brand.js','combobox.js','navigation.js','semesters.js','enhancements.js','content.js','deadline-cache-client.js','page-enhancements.js'])w.eval(fs.readFileSync(root+file,'utf8'));
+ for(const file of ['brand.js','combobox.js','navigation.js','semesters.js','enhancements.js','content.js','deadline-cache-client.js','page-enhancements.js'])w.eval(fs.readFileSync(root+'build/'+file,'utf8'));
  return{dom,w,writes,shadow:w.document.querySelector('#vtop-command-root').shadowRoot};
 }
 const pause=()=>new Promise(r=>setTimeout(r,200));
@@ -241,7 +241,7 @@ test('Firefox assignment dashboard reuses privileged session cache after reload 
  const browser={runtime:{id:'test-extension',onMessage:{addListener:fn=>{listener=fn;}}},storage:{session:{
   get:async key=>({[key]:data[key]}),set:async value=>Object.assign(data,JSON.parse(JSON.stringify(value)))
  }}};
- vm.runInNewContext(fs.readFileSync(root+'deadline-cache.js','utf8'),{browser,Date,Map,Object,Number});
+ vm.runInNewContext(fs.readFileSync(root+'build/deadline-cache.js','utf8'),{browser,Date,Map,Object,Number});
  const runtime={sendMessage:message=>new Promise(resolve=>listener(message,{id:'test-extension',url:'https://vtop.vit.ac.in/vtop/content'},resolve))};
  const fetch=async(url,options)=>{calls.push(String(url));assert.equal(options.credentials,'same-origin');return {ok:true,text:async()=>dashboardHTML([])};};
  const html='<base href="https://example.com/">'+courseList(['A1','B2']);

@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { JSDOM } = require('jsdom');
-const { accept, discover } = require('../captcha');
+const { accept, discover } = require('../build/captcha');
 const pause = () => new Promise(resolve => setTimeout(resolve, 160));
 const answer = { text: 'B7XVK9', scores: Array(6).fill(.95), margins: Array(6).fill(.8), meanScore: .95 };
 const html = '<form><input type="password"><img id="captchaImage" src="/vtop/captcha"><input id="captchaStr" maxlength="6"></form>';
@@ -38,7 +38,7 @@ function setup({ enabled = true, response = async () => answer, initial = '' } =
     local: { get: async () => ({ captchaAutofill: enabled }), set: value => writes.push(value) }, onChanged: { addListener() {} }
   } };
   let submits = 0; w.document.addEventListener('submit', () => submits++);
-  w.eval(fs.readFileSync(__dirname + '/../captcha.js', 'utf8'));
+  w.eval(fs.readFileSync(__dirname + '/../build/captcha.js', 'utf8'));
   return { dom, w, image, input, calls, writes, submits: () => submits };
 }
 test('prefill dispatches input/change once without submitting, and handles a new same-URL image', async () => {

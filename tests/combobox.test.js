@@ -1,8 +1,8 @@
 const {test}=require('node:test');const assert=require('node:assert/strict');const fs=require('node:fs');const {JSDOM}=require('jsdom');
 function setup(markup='<option value="">Choose a semester…</option><option value="fall">Fall Semester 2026-27</option><option value="winter">Winter Semester 2026-27</option><option disabled value="old">Old Semester</option>'){
  const dom=new JSDOM(`<dialog open><label>Term<select>${markup}</select></label></dialog>`,{runScripts:'outside-only'}),w=dom.window;
- w.eval(fs.readFileSync(__dirname+'/../brand.js','utf8'));
- w.eval(fs.readFileSync(__dirname+'/../combobox.js','utf8'));
+ w.eval(fs.readFileSync(__dirname+'/../build/brand.js','utf8'));
+ w.eval(fs.readFileSync(__dirname+'/../build/combobox.js','utf8'));
  const select=w.document.querySelector('select'),changes=[];select.addEventListener('change',()=>changes.push(select.value));
  const box=w.VtopCombobox.create(select,{label:'Semester'});
  const key=(target,value)=>{const event=new w.KeyboardEvent('keydown',{key:value,bubbles:true,cancelable:true});target.dispatchEvent(event);return event;};

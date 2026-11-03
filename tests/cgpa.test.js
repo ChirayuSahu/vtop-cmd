@@ -2,7 +2,7 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { JSDOM } = require('jsdom');
 const fs = require('node:fs');
-const { courses, totals, official, previous } = require('../cgpa');
+const { courses, totals, official, previous } = require('../build/cgpa');
 const table = (history = false) => `<table><tr><th>Course Code</th><th>Course Title</th><th>Course Type</th><th>Credits</th>${history ? '<th>Grade</th><th>Semester</th>' : ''}</tr>
 <tr><td>MAT1001</td><td>Calculus</td><td>Theory</td><td>4</td>${history ? '<td>A</td><td>Fall 2025</td>' : ''}</tr>
 <tr><td>PHY1001</td><td>Physics</td><td>Theory</td><td>3</td>${history ? '<td>F</td><td>Winter 2025</td>' : ''}</tr></table>`;
@@ -22,7 +22,7 @@ test('calculator navigates history then timetable, updates projection, and retur
     event.preventDefault(); visited.push(link.dataset.url);
     w.document.querySelector('main').innerHTML = table(link.dataset.url === 'history');
   });
-  for (const file of ['brand.js', 'combobox.js', 'navigation.js', 'semesters.js', 'page-actions.js', 'cgpa.js', 'content.js', 'cgpa-ui.js']) w.eval(fs.readFileSync(`${__dirname}/../${file}`, 'utf8'));
+  for (const file of ['brand.js', 'combobox.js', 'navigation.js', 'semesters.js', 'page-actions.js', 'cgpa.js', 'content.js', 'cgpa-ui.js']) w.eval(fs.readFileSync(`${__dirname}/../build/${file}`, 'utf8'));
   const shadow = w.document.querySelector('#vtop-command-root').shadowRoot;
   shadow.querySelector('.launcher').click();
   [...shadow.querySelectorAll('.option')].find(row => row.textContent.includes('CGPA calculator')).click();
@@ -67,7 +67,7 @@ test('calculator has no semester selector and opens the current semester, not th
       w.document.querySelector('#courses').innerHTML = data;
     });
   });
-  for (const file of ['brand.js', 'combobox.js', 'navigation.js', 'semesters.js', 'page-actions.js', 'cgpa.js', 'content.js', 'cgpa-ui.js']) w.eval(fs.readFileSync(`${__dirname}/../${file}`, 'utf8'));
+  for (const file of ['brand.js', 'combobox.js', 'navigation.js', 'semesters.js', 'page-actions.js', 'cgpa.js', 'content.js', 'cgpa-ui.js']) w.eval(fs.readFileSync(`${__dirname}/../build/${file}`, 'utf8'));
   const shadow = w.document.querySelector('#vtop-command-root').shadowRoot;
   await new Promise(resolve => setTimeout(resolve, 50));
   shadow.querySelector('.launcher').click();
@@ -82,7 +82,7 @@ test('calculator has no semester selector and opens the current semester, not th
   dom.window.close();
 });
 test('currentTerm picks the semester in progress, never a future one', () => {
-  const { currentTerm } = require('../cgpa');
+  const { currentTerm } = require('../build/cgpa');
   const offered = ['Winter Semester 2026-27', 'Fall Semester 2026-27 - VLR', 'Summer Semester 2025-26', 'Winter Semester 2025-26'].map((label, i) => ({ value: String(i), label }));
   const at = (date, choices = offered) => currentTerm(choices, new Date(date)).label;
   assert.equal(at('2026-11-02'), 'Fall Semester 2026-27 - VLR', 'November: Fall, although Winter is already listed');
@@ -108,7 +108,7 @@ test('reads the live VTOP combined Course and L T P J C timetable layout', () =>
   assert.deepEqual(courses(dom.window.document, true), []);
   dom.window.close();
 });
-const { validatePredictions } = require('../cgpa');
+const { validatePredictions } = require('../build/cgpa');
 test('NGCR categories override grades; F remains in the denominator', () => {
   const dom = new JSDOM(`<table><tr><th>Course Code</th><th>Credits</th><th>Grade</th><th>Course Category</th></tr><tr><td>TEST100N</td><td>2</td><td>S</td><td>NGCR</td></tr><tr><td>TEST200N</td><td>1</td><td>P</td><td>Non-graded Core Requirement</td></tr></table>`);
   const data = courses(dom.window.document, true);
@@ -133,7 +133,7 @@ async function calculatorSetup() {
   w.chrome = { storage: { local: { get: async key => typeof key === 'string' ? { [key]: saved[key] } : { defaultSemester: null }, set: async values => Object.assign(saved, JSON.parse(JSON.stringify(values))) }, onChanged: { addListener() {} } } };
   const current = `<table><tr><th>Course</th><th>L T P J C</th><th>Category</th></tr><tr><td>TEST100L - Mathematics ( Theory Only )</td><td>3 1 0 0 4</td><td>Discipline Core</td></tr><tr><td>TEST200L - Computing ( Theory Only )</td><td>3 0 0 0 3</td><td>Discipline Core</td></tr><tr><td>TEST300N - Constitution ( Online Course )</td><td>0 0 0 0 2</td><td>Non-graded Core Requirement</td></tr></table>`;
   for (const link of w.document.querySelectorAll('a')) link.addEventListener('click', event => { event.preventDefault(); w.document.querySelector('main').innerHTML = link.dataset.url === 'history' ? table(true) : current; });
-  for (const file of ['brand.js', 'combobox.js', 'navigation.js', 'semesters.js', 'page-actions.js', 'cgpa.js', 'content.js', 'cgpa-ui.js']) w.eval(fs.readFileSync(`${__dirname}/../${file}`, 'utf8'));
+  for (const file of ['brand.js', 'combobox.js', 'navigation.js', 'semesters.js', 'page-actions.js', 'cgpa.js', 'content.js', 'cgpa-ui.js']) w.eval(fs.readFileSync(`${__dirname}/../build/${file}`, 'utf8'));
   const shadow = w.document.querySelector('#vtop-command-root').shadowRoot;
   shadow.querySelector('.launcher').click();
   [...shadow.querySelectorAll('.option')].find(row => row.textContent.includes('CGPA calculator')).click();
@@ -195,7 +195,7 @@ test('calculator hides pass/fail-only terms and shows VTOP\'s CGPA as the previo
   for (const link of w.document.querySelectorAll('a')) link.addEventListener('click', event => {
     event.preventDefault(); w.document.querySelector('main').innerHTML = link.dataset.url === 'history' ? gradeHistory('9.40') : table(false);
   });
-  for (const file of ['brand.js', 'combobox.js', 'navigation.js', 'semesters.js', 'page-actions.js', 'cgpa.js', 'content.js', 'cgpa-ui.js']) w.eval(fs.readFileSync(`${__dirname}/../${file}`, 'utf8'));
+  for (const file of ['brand.js', 'combobox.js', 'navigation.js', 'semesters.js', 'page-actions.js', 'cgpa.js', 'content.js', 'cgpa-ui.js']) w.eval(fs.readFileSync(`${__dirname}/../build/${file}`, 'utf8'));
   const shadow = w.document.querySelector('#vtop-command-root').shadowRoot;
   shadow.querySelector('.launcher').click();
   [...shadow.querySelectorAll('.option')].find(row => row.textContent.includes('CGPA calculator')).click();

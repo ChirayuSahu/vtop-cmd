@@ -2,7 +2,7 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const {JSDOM} = require('jsdom');
-const api = require('../dark-readability');
+const api = require('../build/dark-readability');
 test('legacy red and green statuses are lifted to readable colors while readable text is kept', () => {
   const background = [24,33,48];
   for (const color of [[0,128,0,1],[255,0,0,1],[0,0,255,1],[0,0,0,1],[105,105,105,1]]) {
@@ -48,7 +48,7 @@ test('dark-mode repair follows nested AJAX content and restores native colors in
     }
     return css;
   };
-  w.eval(fs.readFileSync(__dirname+'/../dark-readability.js','utf8'));
+  w.eval(fs.readFileSync(__dirname+'/../build/dark-readability.js','utf8'));
   await pause();
   const status = w.document.querySelector('#status');
   assert.equal(status.getAttribute('data-vtop-readable'),'green');
@@ -84,7 +84,7 @@ test('a fixed button mid-transition keeps its fix on later scans instead of flic
     const fading = element.fixedOnce && !element.hasAttribute('data-vtop-readability-hold');
     return new Proxy(css,{get:(target,key)=>key==='color'?(fading?'rgb(200, 200, 200)':'rgb(30, 30, 30)'):Reflect.get(target,key)});
   };
-  w.eval(fs.readFileSync(__dirname+'/../dark-readability.js','utf8'));
+  w.eval(fs.readFileSync(__dirname+'/../build/dark-readability.js','utf8'));
   await pause(); await pause();
   const button = w.document.querySelector('#download');
   assert.ok(button.hasAttribute('data-vtop-readable')); button.fixedOnce = true;

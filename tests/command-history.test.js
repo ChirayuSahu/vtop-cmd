@@ -3,8 +3,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
 const { JSDOM } = require('jsdom');
-const { search, recordUsage, sanitizeUsage, usageScore, USAGE_KEY } = require('../navigation');
-const source = file => fs.readFileSync(__dirname + '/../' + file, 'utf8');
+const { search, recordUsage, sanitizeUsage, usageScore, USAGE_KEY } = require('../build/navigation');
+const { packaged } = require('./paths');
+const source = file => fs.readFileSync(packaged(file), 'utf8');
 const DAY = 86400000, NOW = 1800000000000;
 const commands = [
   { id: 'first', label: 'First page' }, { id: 'frequent', label: 'Frequent page' },
@@ -121,7 +122,7 @@ test('background validates senders and IDs, and handles unavailable storage with
 });
 
 function page(bg, { platform = 'Win32', historyRead } = {}) {
-  const dom = new JSDOM(source('tests/fixture.html'), {
+  const dom = new JSDOM(fs.readFileSync(__dirname + '/fixture.html', 'utf8'), {
     runScripts: 'outside-only', url: 'https://vtop.vit.ac.in/vtop/content'
   });
   const w = dom.window;
