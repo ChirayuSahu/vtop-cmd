@@ -29,17 +29,15 @@ export interface PptxOpenOptions {
 export interface PptxViewerOptions extends PptxOpenOptions {
   zipLimits?: Partial<ZipLimits>;
   externalMedia?: 'allow' | 'block';
+  /** The element that scrolls the slide list; windowed overscan is measured against it. */
+  scrollContainer?: HTMLElement | null;
 }
 
 export declare class PptxViewer extends EventTarget {
-  /**
-   * The vendored build reads only the first three arguments; the viewer options double as the
-   * open options. The fourth parameter exists only so the existing call type-checks.
-   */
+  /** Reads render mode, list options and the lazy flags from the viewer options. */
   static open(
     input: ArrayBuffer | Uint8Array | Blob,
     container: HTMLElement,
-    options?: PptxViewerOptions,
-    ignored?: PptxOpenOptions
+    options?: PptxViewerOptions
   ): Promise<PptxViewer>;
 }

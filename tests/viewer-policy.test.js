@@ -17,11 +17,12 @@ test('extension documents prohibit remote network, executable code, and embedded
 test('PowerPoint rendering blocks external media and retains lazy windowed rendering and ZIP limits',async()=>{
  const source=fs.readFileSync(root+'pptx-viewer.mjs','utf8').replace(/^import[^\n]+\n/,'').replace('export async function','async function');
  let args;const limits={maxEntries:100};const context={PptxViewer:{open:async(...a)=>{args=a;return 'viewer';}},RECOMMENDED_ZIP_LIMITS:limits,Uint8Array};
- vm.createContext(context);vm.runInContext(source,context);let cleared=false;
- assert.equal(await context.renderPptx(new ArrayBuffer(4),{replaceChildren(){cleared=true;}}),'viewer');
- assert.ok(cleared);assert.equal(args[2].externalMedia,'block');assert.equal(args[2].zipLimits,limits);
+ vm.createContext(context);vm.runInContext(source,context);let cleared=false;const container={replaceChildren(){cleared=true;}};
+ assert.equal(await context.renderPptx(new ArrayBuffer(4),container),'viewer');
+ assert.ok(cleared);assert.equal(args[1],container);assert.equal(args[2].externalMedia,'block');assert.equal(args[2].zipLimits,limits);
  assert.equal(args[2].lazySlides,true);assert.equal(args[2].lazyMedia,true);
- assert.equal(args[3].listOptions.windowed,true);assert.equal(args[3].listOptions.initialSlides,4);
+ assert.equal(args.length,3);assert.equal(args[2].renderMode,'list');assert.equal(args[2].scrollContainer,container);
+ assert.equal(args[2].listOptions.windowed,true);assert.equal(args[2].listOptions.initialSlides,4);
 });
 test('legacy PowerPoint renderer uses the bundled runtime without workers',async()=>{
  const source=fs.readFileSync(root+'ppt-viewer.mjs','utf8').replace(/^import[^\n]+\n/,'').replace('export async function','async function');
