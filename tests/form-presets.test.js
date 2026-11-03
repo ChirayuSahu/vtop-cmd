@@ -152,3 +152,12 @@ test('other pages ignore legacy saved presets and never own their controls',asyn
   s.dom.window.close();
  }
 });
+test('a searchable multiple select applies each pick through VTOP\'s change handler',async()=>{
+ const markup='<main id="b5-pagewrapper"><h2>Leave Request</h2><form id="LeaveRequestForm"><label>Days<select id="days" name="days" multiple><option value="mon">Monday</option><option value="tue">Tuesday</option><option value="wed">Wednesday</option></select></label><button type="submit">Submit</button></form></main>';
+ const s=await setup(markup);for(const file of ['page-runtime.js','page-actions.js'])s.w.eval(fs.readFileSync(__dirname+'/../'+file,'utf8'));
+ let changes=0,submits=0;const days=s.w.document.querySelector('#days'),chosen=()=>[...days.selectedOptions].map(o=>o.value);days.addEventListener('change',()=>changes++);s.w.document.addEventListener('submit',e=>{e.preventDefault();submits++;});
+ const picker=s.w.document.querySelector('.vtop-search-select').shadowRoot,input=picker.querySelector('input');
+ const pick=async label=>{input.dispatchEvent(new s.w.Event('focus'));const item=[...picker.querySelectorAll('[role=option]')].find(i=>i.textContent.includes(label));assert.ok(item,label);item.click();await pause();};
+ await pick('Tuesday');assert.deepEqual(chosen(),['tue']);await pick('Monday');assert.deepEqual(chosen(),['mon','tue']);await pick('Tuesday');assert.deepEqual(chosen(),['mon']);
+ assert.equal(changes,3);assert.equal(submits,0);s.dom.window.close();
+});

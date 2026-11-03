@@ -108,8 +108,8 @@ declare var VtopFormPresets: VtopFormPresetsApi | undefined;
           const target=isLookup(field) && document.getElementById(field.dataset.effectdivision!);
           const needsLookup=field.tagName==='SELECT' && field.dataset.isprimarycontrol==='true' && target && [...target.querySelectorAll('select')].some(child=>Object.hasOwn(preset.values,fieldKey(child,fields(form))) && !available(child,preset.values[fieldKey(child,fields(form))]));
           if (JSON.stringify(read(field)) === JSON.stringify(value) && !needsLookup) continue;
-          if (globalThis.VtopPageActions && (field.tagName === 'SELECT' && !field.multiple || field.tagName === 'INPUT' && isLookup(field))) {
-            await globalThis.VtopPageActions.change(field, value as string,{force:!!needsLookup}); // a single select or lookup input: available() checked it is a string
+          if (globalThis.VtopPageActions && typeof value === 'string' && (field.tagName === 'SELECT' && !field.multiple || field.tagName === 'INPUT' && isLookup(field))) {
+            await globalThis.VtopPageActions.change(field, value,{force:!!needsLookup}); // a single select or lookup input: available() checked it is a string
             // A native handler may replace this form. Resume against fresh controls.
             if (!field.isConnected) {rescan=true;break;}
           } else {
@@ -302,9 +302,10 @@ declare var VtopFormPresets: VtopFormPresetsApi | undefined;
     try {
       while(session.queue.length && !session.cancelled && session===editing) {
         const task=session.queue.shift()!, source=sourceFor(session,task.control);
-        if(!source || source.disabled || source.tagName==='SELECT'&&!available(source,task.value))continue;
+        // Lookup sources are single selects and date/time inputs, so their values are never checked states.
+        if(!source || source.disabled || source.tagName==='SELECT'&&!available(source,task.value) || typeof task.value==='boolean')continue;
         if(task.reset)resetChildren(session,source);
-        const ok=globalThis.VtopPageActions ? await globalThis.VtopPageActions.change(source,task.value as string,{force:true}) : await fallbackChange(source,task.value as string); // lookup sources are single selects and date/time inputs
+        const ok=globalThis.VtopPageActions ? await globalThis.VtopPageActions.change(source,task.value,{force:true}) : await fallbackChange(source,task.value);
         if(session.cancelled || session!==editing)break;
         refreshEditor(session);
         if(!ok)throw new Error('Lookup failed');
@@ -317,7 +318,10 @@ declare var VtopFormPresets: VtopFormPresetsApi | undefined;
       if(session===editing){$<HTMLButtonElement>('.save').disabled=false;refreshEditor(session);}
     }
   }
-  async function fallbackChange(source: Field,value: string) {source.value=value;source.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,180));return true;}
+  async function fallbackChange(source: Field,value: string | string[]) {
+    if(source.multiple)[...source.options!].forEach(option=>{if(!option.disabled)option.selected=[value].flat().includes(option.value);});else source.value=String(value);
+    source.dispatchEvent(new Event('change',{bubbles:true}));await new Promise(resolve=>setTimeout(resolve,180));return true;
+  }
   const nativeStyle=document.createElement('style');nativeStyle.textContent='select[data-vtop-searchable]{display:none!important}';document.head.append(nativeStyle);
   function syncNativePickers() {
     if(!globalThis.VtopSearchSelect)return;
@@ -333,8 +337,8 @@ declare var VtopFormPresets: VtopFormPresetsApi | undefined;
           const picker=globalThis.VtopSearchSelect.create(select,ui,label(select,0),async value=>{
             // A pick here is yours, even though the change it fires isn't a trusted event.
             markManual(select);
-            // A multiple select hands over an array, which PageActions.change and fallbackChange are typed (string) not to take.
-            if(globalThis.VtopPageActions)await globalThis.VtopPageActions.change(select,value as string);else await fallbackChange(select,value as string);
+            // A multiple select hands over the array of chosen values.
+            if(globalThis.VtopPageActions)await globalThis.VtopPageActions.change(select,value);else await fallbackChange(select,value);
           });
           record={host:mount,picker};nativePickers.set(select,record);
         }

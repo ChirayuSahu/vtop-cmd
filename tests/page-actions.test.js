@@ -70,3 +70,18 @@ test('forced lookup reruns an unchanged parent; known form dates run change hand
  const {dom,w}=setup();const select=w.document.querySelector('select');let changes=0,submits=0;select.value='S1';select.addEventListener('change',()=>changes++);assert.equal(await w.VtopPageActions.change(select,'S1'),true);assert.equal(changes,0);assert.equal(await w.VtopPageActions.change(select,'S1',{force:true}),true);assert.equal(changes,1);
  w.document.querySelector('main').insertAdjacentHTML('beforeend','<form id="LateHourRequestForm"><input type="date" id="lateHourFromDate"><button type="submit">Submit</button></form><form id="other"><input type="date"></form>');w.document.addEventListener('submit',e=>{e.preventDefault();submits++;});let dateChanges=0;const date=w.document.querySelector('#lateHourFromDate');date.addEventListener('change',()=>dateChanges++);assert.equal(await w.VtopPageActions.change(date,'2026-11-03'),true);assert.equal(dateChanges,1);assert.equal(date.value,'2026-11-03');assert.equal(await w.VtopPageActions.change(w.document.querySelector('#other input'),'2026-11-03'),false);assert.equal(submits,0);dom.window.close();
 });
+test('a multiple select takes a list of enabled options, keeps disabled choices, and rejects anything else',async()=>{
+ const {dom,w}=setup();let changes=0,submits=0;
+ w.document.querySelector('main').insertAdjacentHTML('beforeend','<form id="LeaveRequestForm"><select id="days" multiple><option value="mon">Monday</option><option value="tue">Tuesday</option><option value="wed">Wednesday</option><option value="sun" disabled selected>Sunday</option><option value="sat" disabled>Saturday</option></select><button type="submit">Submit</button></form>');
+ w.document.addEventListener('submit',e=>{e.preventDefault();submits++;});
+ const days=w.document.querySelector('#days'),chosen=()=>[...days.selectedOptions].map(o=>o.value);days.addEventListener('change',()=>changes++);
+ assert.equal(await w.VtopPageActions.change(days,['tue','mon','sun']),true);assert.deepEqual(chosen(),['mon','tue','sun']);assert.equal(changes,1);
+ assert.equal(await w.VtopPageActions.change(days,['sun','tue','mon']),true,'the same choices in another order are unchanged');assert.equal(changes,1);
+ assert.equal(await w.VtopPageActions.change(days,['wed']),true,'a disabled choice left out stays chosen');assert.deepEqual(chosen(),['wed','sun']);assert.equal(changes,2);
+ assert.equal(await w.VtopPageActions.change(days,[]),true);assert.deepEqual(chosen(),['sun']);assert.equal(changes,3);
+ for(const value of [['mon','sat'],['mon','missing'],['mon',3],[['mon']]])assert.equal(await w.VtopPageActions.change(days,value),false,JSON.stringify(value));
+ assert.deepEqual(chosen(),['sun']);assert.equal(changes,3);
+ const semester=w.document.querySelector('#semesterSubId');let semesterChanges=0;semester.addEventListener('change',()=>semesterChanges++);
+ assert.equal(await w.VtopPageActions.change(semester,['S1']),false,'a single select takes one value, not a list');assert.equal(semester.value,'');assert.equal(semesterChanges,0);
+ assert.equal(submits,0);dom.window.close();
+});
