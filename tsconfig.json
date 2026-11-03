@@ -1,0 +1,23 @@
+{
+  // The extension's TypeScript sources live in src/ and compile one-to-one into plain browser
+  // scripts at the repo root (no bundling), where the manifest, tests and build expect them.
+  // The compiled files are git-ignored; run `npm run compile` (build and test do it for you).
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    // Files without import/export stay classic scripts that share globals, as content scripts do.
+    "moduleDetection": "auto",
+    "rootDir": "src",
+    "outDir": ".",
+    "types": ["chrome"],
+    "strict": true,
+    "noEmitOnError": true,
+    "skipLibCheck": true,
+    "newLine": "lf"
+  },
+  "include": ["src"],
+  // An explicit exclude stops tsc from excluding the outDir (the repo root, and so src/ too).
+  "exclude": ["node_modules"]
+}

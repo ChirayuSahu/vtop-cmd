@@ -23,7 +23,7 @@ test('Chrome manifest uses a service worker and preserves shared document viewer
   for(const value of chromePolicy[name]||[])assert.equal(value,"'self'",`Chrome rejects executable source ${value}`);
  }
  assert.deepEqual(chromePolicy,{...firefoxPolicy,'worker-src':["'self'"]});
- assert.match(fs.readFileSync(path.join(root,'pdf-viewer.mjs'),'utf8'),/workerSrc=new URL\('\.\/vendor\/pdf\.worker\.mjs',import\.meta\.url\)/);
+ assert.match(fs.readFileSync(path.join(root,'pdf-viewer.mjs'),'utf8'),/workerSrc\s*=\s*new URL\('\.\/vendor\/pdf\.worker\.mjs',\s*import\.meta\.url\)/);
  for(const asset of ['pptx-viewer.mjs','ppt-viewer.mjs','word-viewer.mjs','vendor/pptx-renderer.browser.mjs','vendor/pptjs/pptjs.mjs','pdf-viewer.mjs']){
   assert.ok(chrome.web_accessible_resources[0].resources.includes(asset));assert.ok(fs.existsSync(path.join(root,asset)));
  }

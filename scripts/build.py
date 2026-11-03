@@ -42,8 +42,8 @@ def build_source_archive():
             capture_output=True,
         ).stdout.decode('utf-8').split('\0')) - {''}
         assert names <= tracked, f'Archive contains untracked files: {sorted(names - tracked)}'
-        required = {'README.md', 'package.json', 'package-lock.json', 'manifest.json',
-                    'scripts/build.cjs', 'scripts/build.py', 'scripts/browser_manifest.py'}
+        required = {'README.md', 'package.json', 'package-lock.json', 'manifest.json', 'tsconfig.json',
+                    'src/content.ts', 'scripts/build.cjs', 'scripts/build.py', 'scripts/browser_manifest.py'}
         assert required <= names, f'Missing source files: {sorted(required - names)}'
         assert not any(Path(name).suffix.lower() in {'.xpi', '.zip'} for name in names)
     print(f'Built {archive}')
