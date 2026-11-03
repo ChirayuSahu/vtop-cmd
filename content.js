@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   if (document.getElementById('vtop-command-root')) return;
-  const { discover, search } = globalThis.VtopNavigation;
+  const { discover, search, USAGE_KEY, sanitizeUsage, recordUsage } = globalThis.VtopNavigation;
   const semesters = globalThis.VtopSemesters;
   const host = document.createElement('div');
   host.id = 'vtop-command-root';
@@ -46,7 +46,7 @@
       <section class="shortcut-settings" hidden aria-labelledby="shortcut-title">
         <h2 id="shortcut-title">Change your keyboard shortcut</h2>
         <p>Current shortcut</p><kbd class="shortcut-current"></kbd>
-        <p class="shortcut-status" role="status">Use Ctrl or Command plus a letter, number, or F1–F12 key. Shift and Alt are optional.</p>
+        <p class="shortcut-status" role="status">Use Ctrl or Command plus an unused letter or F1–F12 key. Shift and Alt are optional.</p>
         <div class="shortcut-actions"><button class="record-shortcut" type="button">Record shortcut</button><button class="save-shortcut" type="button" disabled>Save</button><button class="reset-shortcut" type="button">Reset</button><button class="back-shortcut" type="button">Back</button></div>
       </section>
       <div class="search"><span aria-hidden="true">⌕</span><input aria-label="Search VTOP pages" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="results" placeholder="Where do you want to go?" autocomplete="off" spellcheck="false"></div>
@@ -58,7 +58,7 @@
   const dialog = shadow.querySelector('dialog');
   const input = shadow.querySelector('.search input');
   const list = shadow.querySelector('.results');
-  let commands = [], filtered = [], selected = 0, recent = [], previousFocus, dark = false;
+  let commands = [], filtered = [], selected = 0, usage = {}, usageRevision = 0, previousFocus, dark = false;
   let defaultSemester = null, preferencesReady = false, prompted = false, semesterView = false, shortcutView = false;
   let pendingShortcut = null, recordingShortcut = false;
   // The default semester is applied once per page visit. A visit starts on load or when a VTOP page is opened from
@@ -222,7 +222,12 @@
     }
   }
   function updateShortcutDisplay() {
-    shadow.querySelector('.shortcut').textContent = shortcut.label;
+    const display = shadow.querySelector('.shortcut');
+    const modifier = shortcut.mac ? '⌘' : 'Ctrl';
+    const modifierNode = document.createElement('span');
+    modifierNode.textContent = modifier;
+    if (shortcut.mac) modifierNode.className = 'symbol';
+    display.replaceChildren(modifierNode, document.createTextNode(shortcut.label.slice(modifier.length)));
     shadow.querySelector('.shortcut-current').textContent = shortcut.label;
   }
   updateShortcutDisplay();
@@ -243,7 +248,7 @@
     semesterView = false; shortcutView = true;
     for (const selector of ['.search', '.meta', '.results', 'footer', '.semester-settings']) shadow.querySelector(selector).hidden = true;
     shadow.querySelector('.shortcut-settings').hidden = false;
-    shadow.querySelector('.shortcut-status').textContent = 'Use Ctrl or Command plus a letter, number, or F1–F12 key. Shift and Alt are optional.';
+    shadow.querySelector('.shortcut-status').textContent = 'Use Ctrl or Command plus an unused letter or F1–F12 key. Shift and Alt are optional.';
     shadow.querySelector('.record-shortcut').focus();
   }
   function recordShortcutKey(event) {
@@ -256,9 +261,10 @@
     }
     const primaryHeld = shortcut.mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
     const key = event.key.toLowerCase();
-    if (!primaryHeld || !/^(?:[a-z0-9]|f(?:[1-9]|1[0-2]))$/i.test(key) ||
+    const reservedKey = /^(?:[0-9]|[acflprsvxz])$/.test(key);
+    if (!primaryHeld || reservedKey || !/^(?:[a-z0-9]|f(?:[1-9]|1[0-2]))$/i.test(key) ||
         !/^(?:Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/.test(event.code)) {
-      shadow.querySelector('.shortcut-status').textContent = `That key combination cannot be used. Press ${shortcut.mac ? 'Command' : 'Ctrl'} with a letter, number, or F1–F12 key.`;
+      shadow.querySelector('.shortcut-status').textContent = `That key combination is reserved. Choose ${shortcut.mac ? 'Command' : 'Ctrl'} plus another letter or an F1–F12 key.`;
       return;
     }
     pendingShortcut = { key, code: event.code, shiftKey: event.shiftKey, altKey: event.altKey };
@@ -271,7 +277,7 @@
   shadow.querySelector('.record-shortcut').addEventListener('click', () => {
     discardShortcutChange(); recordingShortcut = true;
     shadow.querySelector('.record-shortcut').textContent = 'Press shortcut…';
-    shadow.querySelector('.shortcut-status').textContent = `Now press ${shortcut.mac ? 'Command' : 'Ctrl'} plus a letter, number, or F1–F12 key. Escape cancels.`;
+    shadow.querySelector('.shortcut-status').textContent = `Now press ${shortcut.mac ? 'Command' : 'Ctrl'} plus an unused letter or F1–F12 key. Escape cancels.`;
     document.addEventListener('keydown', recordShortcutKey, true);
   });
   shadow.querySelector('.save-shortcut').addEventListener('click', async () => {
@@ -289,7 +295,7 @@
     try {
       discardShortcutChange();
       await chrome.storage.local.remove('commandShortcut');
-      shortcut.set({ key: 'k', code: 'KeyK', shiftKey: false, altKey: false });
+      shortcut.reset();
       updateShortcutDisplay(); showPages(); render(); input.focus();
     } catch (error) {
       shadow.querySelector('.shortcut-status').textContent = `Could not reset the shortcut: ${error.message}`;
@@ -308,6 +314,24 @@
     setTheme(!dark);
     try { chrome.storage.local.set({ darkMode: dark })?.catch(() => {}); } catch { /* Extension reloaded. */ }
   }
+  function rememberCommand(id) {
+    usage = recordUsage(usage, id);
+    const revision = ++usageRevision;
+    try {
+      chrome.runtime.sendMessage({ type: 'vtop-command-used', id }).then(result => {
+        if (result?.history && revision === usageRevision) usage = sanitizeUsage(result.history);
+      }).catch(() => {}); // A reloaded/unavailable extension still has in-tab ranking.
+    } catch { /* Preview without the extension runtime. */ }
+  }
+  // A late startup read must not replace a newer selection or another tab's update.
+  try {
+    const revision = usageRevision;
+    chrome.storage.local.get(USAGE_KEY).then(settings => {
+      if (revision !== usageRevision) return;
+      usage = sanitizeUsage(settings[USAGE_KEY]);
+      if (dialog.open && !semesterView && selected === 0) render();
+    }).catch(() => {});
+  } catch { /* Ranking works in memory if storage is unavailable. */ }
   setTheme(false);
   try {
     // Filter memory was removed; drop what it had saved.
@@ -323,6 +347,10 @@
       preferencesReady = true; scanSemesters();
     }).catch(() => { preferencesReady = true; scanSemesters(); });
     chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes[USAGE_KEY]) {
+        usage = sanitizeUsage(changes[USAGE_KEY].newValue); usageRevision++;
+        // Apply on the next render, without moving a row underneath the pointer.
+      }
       if (area === 'local' && changes.darkMode) setTheme(changes.darkMode.newValue === true);
       if (area === 'local' && Array.isArray(changes.knownSemesters?.newValue?.list)) {
         rememberSemesters(changes.knownSemesters.newValue.list, { persist: false });
@@ -332,7 +360,7 @@
       if (area === 'local' && changes.defaultSemester) setSemesterPreference(changes.defaultSemester.newValue);
       if (area === 'local' && changes.commandShortcut) {
         if (shortcut.set(changes.commandShortcut.newValue)) updateShortcutDisplay();
-        else { shortcut.set({ key: 'k', code: 'KeyK', shiftKey: false, altKey: false }); updateShortcutDisplay(); }
+        else { shortcut.reset(); updateShortcutDisplay(); }
       }
     });
   } catch { preferencesReady = true; setTimeout(scanSemesters, 0); }
@@ -365,10 +393,10 @@
     } else input.removeAttribute('aria-activedescendant');
   }
   function render() {
-    filtered = search(allCommands(), input.value, recent);
+    filtered = search(allCommands(), input.value, usage);
     selected = 0;
     list.replaceChildren();
-    shadow.querySelector('.section').textContent = input.value.trim() ? 'SEARCH RESULTS' : recent.length ? 'RECENT & ALL PAGES' : 'ALL PAGES';
+    shadow.querySelector('.section').textContent = input.value.trim() ? 'SEARCH RESULTS' : Object.keys(usage).length ? 'FREQUENT & RECENT' : 'ALL PAGES';
     shadow.querySelector('.count').textContent = `${filtered.length} ${filtered.length === 1 ? 'result' : 'results'}`;
     if (!commands.length && !input.value) {
       const message = document.createElement('p'); message.className = 'empty';
@@ -404,11 +432,11 @@
   host.addEventListener('vtop-cgpa-back', () => { showPages(); render(); input.focus(); });
   function activate(index) {
     const command = filtered[index]; if (!command) return;
-    if (command.action) { command.action(); return; }
+    if (command.action) { rememberCommand(command.id); command.action(); return; }
     // Re-resolve after AJAX replacements. Never replay a stale route or submit a page form.
     const current = discover(document).find(item => item.id === command.id);
     if (!current) { commands = discover(document); render(); return; }
-    recent = [command.id, ...recent.filter(id => id !== command.id)].slice(0, 8);
+    rememberCommand(command.id);
     close();
     if (globalThis.VtopPageActions) globalThis.VtopPageActions.navigate(() => discover(document).find(item => item.id === command.id)?.element);
     else current.element.click();

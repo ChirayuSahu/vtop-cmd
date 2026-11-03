@@ -24,6 +24,9 @@
       binding = { key: value.key.toLowerCase(), code: value.code, shiftKey: value.shiftKey === true, altKey: value.altKey === true };
       return true;
     },
+    reset() {
+      return this.set(defaultBinding);
+    },
     matches: event => (mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey) &&
       event.altKey === binding.altKey && event.shiftKey === binding.shiftKey &&
       (event.key?.toLowerCase() === binding.key || event.code === binding.code),

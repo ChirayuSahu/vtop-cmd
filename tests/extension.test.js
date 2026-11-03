@@ -89,7 +89,7 @@ test('manifest has only local preference storage and VTOP-only content scope, al
   assert.equal(manifest.manifest_version,3); assert.deepEqual(manifest.permissions,['storage']);
   assert.deepEqual(manifest.host_permissions,['https://vtop.vit.ac.in/*']);
   assert.deepEqual(manifest.browser_specific_settings.gecko.data_collection_permissions,{required:['none']});
-  assert.deepEqual(manifest.background,{scripts:['deadline-cache.js','extension-action.js']});
+  assert.deepEqual(manifest.background,{scripts:['navigation.js','command-history.js','deadline-cache.js','extension-action.js']});
   assert.deepEqual(manifest.content_scripts[0].matches,['https://vtop.vit.ac.in/vtop/*']);
   for(const file of [...manifest.content_scripts[0].js,...manifest.content_scripts[0].css]) assert.ok(fs.existsSync(__dirname+'/../'+file));
   const viewerResources=manifest.web_accessible_resources.find(resource=>resource.resources.includes('pdf-viewer.html')).resources;
@@ -265,6 +265,7 @@ test('Windows/Linux use and show Ctrl+K only; macOS uses and shows Cmd+K; physic
   }
   const mac=setup({platform:'MacIntel'});
   assert.equal(mac.shadow.querySelector('.shortcut').textContent,'⌘ K');
+  assert.equal(mac.shadow.querySelector('.shortcut .symbol')?.textContent,'⌘');
   mac.key('k',{ctrlKey:true}); assert.equal(mac.shadow.querySelector('dialog').open,false,'Ctrl+K stays native on macOS');
   mac.key('k',{metaKey:true}); assert.equal(mac.shadow.querySelector('dialog').open,true);
   mac.dom.window.close();
@@ -273,14 +274,19 @@ test('shortcut setting records, saves, applies, restores across tabs, and resets
   const {dom,shadow,key,writes,removals}=setup({platform:'Win32'}); await flush();
   shadow.querySelector('.shortcut-button').click();
   shadow.querySelector('.record-shortcut').click();
-  key('P',{code:'KeyP',ctrlKey:true,shiftKey:true});
-  assert.equal(shadow.querySelector('.shortcut-current').textContent,'Ctrl Shift P');
+  for (const [value, code] of [['C','KeyC'],['V','KeyV'],['X','KeyX'],['A','KeyA'],['Z','KeyZ'],['F','KeyF'],['R','KeyR'],['P','KeyP'],['S','KeyS'],['L','KeyL'],['1','Digit1']]) {
+    key(value,{code,ctrlKey:true});
+    assert.match(shadow.querySelector('.shortcut-status').textContent,/reserved/);
+  }
+  assert.equal(shadow.querySelector('.save-shortcut').disabled,true);
+  key('G',{code:'KeyG',ctrlKey:true,shiftKey:true});
+  assert.equal(shadow.querySelector('.shortcut-current').textContent,'Ctrl Shift G');
   shadow.querySelector('.save-shortcut').click(); await flush();
-  assert.equal(shadow.querySelector('.shortcut').textContent,'Ctrl Shift P');
-  assert.deepEqual(JSON.parse(JSON.stringify(writes.find(write=>write.commandShortcut)?.commandShortcut)),{key:'p',code:'KeyP',shiftKey:true,altKey:false});
+  assert.equal(shadow.querySelector('.shortcut').textContent,'Ctrl Shift G');
+  assert.deepEqual(JSON.parse(JSON.stringify(writes.find(write=>write.commandShortcut)?.commandShortcut)),{key:'g',code:'KeyG',shiftKey:true,altKey:false});
   shadow.querySelector('.close').click();
-  key('p',{ctrlKey:true}); assert.equal(shadow.querySelector('dialog').open,false,'the modifier combination must match exactly');
-  key('p',{ctrlKey:true,shiftKey:true}); assert.equal(shadow.querySelector('dialog').open,true,'the saved shortcut opens the menu');
+  key('g',{ctrlKey:true}); assert.equal(shadow.querySelector('dialog').open,false,'the modifier combination must match exactly');
+  key('g',{ctrlKey:true,shiftKey:true}); assert.equal(shadow.querySelector('dialog').open,true,'the saved shortcut opens the menu');
   shadow.querySelector('.shortcut-button').click();
   shadow.querySelector('.reset-shortcut').click(); await flush();
   assert.ok(removals.includes('commandShortcut'));
@@ -290,9 +296,9 @@ test('shortcut setting records, saves, applies, restores across tabs, and resets
   dom.window.close();
 });
 test('saved shortcut preferences load and malformed values are ignored', async () => {
-  const saved=setup({platform:'Win32',savedShortcut:{key:'p',code:'KeyP',shiftKey:false,altKey:false}}); await flush();
-  assert.equal(saved.shadow.querySelector('.shortcut').textContent,'Ctrl P');
-  saved.key('p',{ctrlKey:true}); assert.equal(saved.shadow.querySelector('dialog').open,true);
+  const saved=setup({platform:'Win32',savedShortcut:{key:'g',code:'KeyG',shiftKey:false,altKey:false}}); await flush();
+  assert.equal(saved.shadow.querySelector('.shortcut').textContent,'Ctrl G');
+  saved.key('g',{ctrlKey:true}); assert.equal(saved.shadow.querySelector('dialog').open,true);
   saved.dom.window.close();
   const malformed=setup({platform:'Win32',savedShortcut:{key:'Escape',code:'Escape'}}); await flush();
   assert.equal(malformed.shadow.querySelector('.shortcut').textContent,'Ctrl K');
@@ -303,14 +309,14 @@ test('cancelling or leaving shortcut recording discards the unsaved key and rest
   const openSettings=()=>shadow.querySelector('.shortcut-button').click();
   openSettings();
   shadow.querySelector('.record-shortcut').click();
-  key('P',{code:'KeyP',ctrlKey:true});
-  assert.equal(shadow.querySelector('.shortcut-current').textContent,'Ctrl P');
+  key('G',{code:'KeyG',ctrlKey:true});
+  assert.equal(shadow.querySelector('.shortcut-current').textContent,'Ctrl G');
   shadow.querySelector('.record-shortcut').click();
   key('Escape');
   assert.equal(shadow.querySelector('.shortcut-current').textContent,'Ctrl K');
   assert.equal(shadow.querySelector('.save-shortcut').disabled,true);
   shadow.querySelector('.record-shortcut').click();
-  key('P',{code:'KeyP',ctrlKey:true});
+  key('G',{code:'KeyG',ctrlKey:true});
   shadow.querySelector('.close').click();
   openSettings();
   assert.equal(shadow.querySelector('.shortcut-current').textContent,'Ctrl K');
