@@ -9,8 +9,18 @@ import subprocess
 from browser_manifest import browser_manifest
 
 root = Path(__file__).resolve().parent.parent
+# Where each packaged file comes from: compiled scripts from build/ (tsc output), the README and
+# docs from the repo root, and everything else that ships as-is from static/.
+build_dir = root / 'build'
+static_dir = root / 'static'
+def source(name):
+    if name.endswith(('.js', '.mjs')):
+        return build_dir / name
+    if name == 'README.md' or name.startswith('docs/'):
+        return root / name
+    return static_dir / name
 files = ['command-history.js', 'captcha-solver.js', 'captcha.js', 'captcha-model.json', 'licenses/vtop-captcha-solver.txt', 'extension-background.js', 'deadline-cache.js', 'deadline-cache-client.js', 'manifest.json', 'brand.js', 'combobox.js', 'search-select.js', 'form-presets.js', 'navigation.js', 'semesters.js', 'enhancements.js', 'content.js', 'dark-readability.js', 'cgpa.js', 'cgpa-ui.js', 'page-enhancements.js', 'page-actions.js', 'page-runtime.js', 'pdf-bridge.js', 'pdf-preview.js', 'extension-action.js', 'pdf-viewer.html', 'pdf-viewer.css', 'pdf-viewer.mjs', 'pptx-viewer.mjs', 'ppt-viewer.mjs', 'word-viewer.mjs', 'dark.css', 'README.md', 'docs/dark-mode-audit.md']
-source_manifest = json.loads((root / 'manifest.json').read_text())
+source_manifest = json.loads((static_dir / 'manifest.json').read_text())
 assert source_manifest['manifest_version'] == 3
 assert source_manifest.get('background') == {'scripts': ['navigation.js', 'command-history.js', 'deadline-cache.js', 'extension-action.js']}
 parser = argparse.ArgumentParser()
@@ -42,7 +52,7 @@ def build_source_archive():
             capture_output=True,
         ).stdout.decode('utf-8').split('\0')) - {''}
         assert names <= tracked, f'Archive contains untracked files: {sorted(names - tracked)}'
-        required = {'README.md', 'package.json', 'package-lock.json', 'manifest.json', 'tsconfig.json',
+        required = {'README.md', 'package.json', 'package-lock.json', 'static/manifest.json', 'tsconfig.json',
                     'src/content.ts', 'scripts/build.cjs', 'scripts/build.py', 'scripts/browser_manifest.py'}
         assert required <= names, f'Missing source files: {sorted(required - names)}'
         assert not any(Path(name).suffix.lower() in {'.xpi', '.zip'} for name in names)
@@ -61,7 +71,7 @@ for browser in browsers:
     shutil.rmtree(output, ignore_errors=True)
     output.mkdir(parents=True, exist_ok=True)
     for size, name in manifest.get('icons', {}).items():
-        data = (root / name).read_bytes()
+        data = (static_dir / name).read_bytes()
         assert data[:8] == b'\x89PNG\r\n\x1a\n'
         assert struct.unpack('>II', data[16:24]) == (int(size), int(size))
     for name in files:
@@ -69,8 +79,8 @@ for browser in browsers:
         if name == 'manifest.json':
             (output / name).write_text(json.dumps(manifest, indent=2) + '\n')
         else:
-            shutil.copy2(root / name, output / name)
-    shutil.copytree(root / 'icons', output / 'icons', dirs_exist_ok=True)
+            shutil.copy2(source(name), output / name)
+    shutil.copytree(static_dir / 'icons', output / 'icons', dirs_exist_ok=True)
     vendor = output / 'vendor'
     shutil.copytree(root / 'vendor', vendor, dirs_exist_ok=True)
     # Fail packaging if a declared runtime/model asset was accidentally left out.

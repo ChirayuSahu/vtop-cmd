@@ -1,8 +1,9 @@
 const {test}=require('node:test');
+const {packaged}=require('./paths');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {JSDOM}=require('jsdom');
-const source=fs.readFileSync(__dirname+'/../pdf-bridge.js','utf8');
+const source=fs.readFileSync(__dirname+'/../build/pdf-bridge.js','utf8');
 const pause=()=>new Promise(resolve=>setTimeout(resolve,35));
 const samplePdf=()=>new TextEncoder().encode('%PDF-1.4\npreview test').buffer;
 function bridge({body='%PDF-1.4\nmock',type='application/pdf',disposition="attachment; filename*=UTF-8''Lecture%20notes.pdf",ok=true,navigation=false}={}){
@@ -74,12 +75,12 @@ test('expired sessions show an error instead of downloading HTML as PDF',async()
  assert.ok(messages.some(m=>m.kind==='error'));assert.equal(downloads.length,0);dom.window.close();
 });
 test('PDF resources are bundled locally and MAIN interception is scoped only to VTOP',()=>{
- const manifest=JSON.parse(fs.readFileSync(__dirname+'/../manifest.json'));
+ const manifest=JSON.parse(fs.readFileSync(__dirname+'/../static/manifest.json'));
  const main=manifest.content_scripts.find(script=>script.world==='MAIN');assert.deepEqual(main.matches,['https://vtop.vit.ac.in/vtop/*']);assert.equal(main.run_at,'document_start');
  assert.deepEqual(manifest.permissions,['storage']);
  const viewerResources=manifest.web_accessible_resources.find(resource=>resource.resources.includes('pdf-viewer.html')).resources;
  for(const file of ['pdf-viewer.html','pdf-viewer.css','pdf-viewer.mjs','pptx-viewer.mjs','ppt-viewer.mjs','word-viewer.mjs','brand.js','vendor/pdf.mjs','vendor/pdf.worker.mjs','vendor/pptx-renderer.browser.mjs','vendor/pptjs/pptjs.mjs']) {
-  assert.ok(fs.existsSync(__dirname+'/../'+file));
+  assert.ok(fs.existsSync(packaged(file)));
   assert.ok(viewerResources.includes(file));
  }
  for(const file of ['vendor/docx/docx-preview.min.mjs','vendor/docx/jszip.min.mjs','vendor/msdoc/purify.es.mjs','vendor/msdoc/modules/msdoc/parser.js','vendor/msdoc/modules/render/html.js']) assert.ok(fs.existsSync(__dirname+'/../'+file));
@@ -89,7 +90,7 @@ test('PDF resources are bundled locally and MAIN interception is scoped only to 
  assert.ok(viewerResources.includes('vendor/msdoc/modules/render/*'));
  assert.ok(viewerResources.includes('vendor/cmaps/*'));
  assert.ok(viewerResources.includes('vendor/standard_fonts/*'));
- assert.ok(!fs.readFileSync(__dirname+'/../pdf-viewer.html','utf8').includes('https://'));
+ assert.ok(!fs.readFileSync(__dirname+'/../static/pdf-viewer.html','utf8').includes('https://'));
 });
 test('Shift-click bypasses the viewer for native javascript download helpers',()=>{
  const {dom,w,opens,calls}=bridge();const anchor=w.document.createElement('a');anchor.href='javascript:void(0)';anchor.addEventListener('click',()=>w.open('/vtop/download/original'));w.document.body.append(anchor);
@@ -102,7 +103,7 @@ test('preview ignores forged origins and accepts PDF bytes without fetching page
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
  w.URL.createObjectURL=()=>'blob:https://vtop.vit.ac.in/preview-copy';w.URL.revokeObjectURL=()=>{};
  let fetched=0;w.fetch=async()=>{fetched++;throw new Error('Should not fetch');};
- w.eval(fs.readFileSync(__dirname+'/../brand.js','utf8'));w.eval(fs.readFileSync(__dirname+'/../pdf-preview.js','utf8'));
+ w.eval(fs.readFileSync(__dirname+'/../build/brand.js','utf8'));w.eval(fs.readFileSync(__dirname+'/../build/pdf-preview.js','utf8'));
  const send=(origin,kind,extra={})=>w.dispatchEvent(new w.MessageEvent('message',{source:w,origin,data:{source:'vtop-command-pdf',id:'pdf-1-1',kind,...extra}}));
  send('https://attacker.example','loading');const dialog=w.document.querySelector('#vtop-pdf-preview').shadowRoot.querySelector('dialog');assert.equal(dialog.open,false);
  send(w.location.origin,'loading');assert.equal(dialog.open,true);
@@ -113,7 +114,7 @@ test('a click on the preview backdrop closes it; clicks inside do not',()=>{
  const dom=new JSDOM('<!doctype html><html><body></body></html>',{runScripts:'outside-only',url:'https://vtop.vit.ac.in/vtop/content'}),w=dom.window;
  w.chrome={runtime:{getURL:name=>'moz-extension://test-extension/'+name}};
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
- w.eval(fs.readFileSync(__dirname+'/../brand.js','utf8'));w.eval(fs.readFileSync(__dirname+'/../pdf-preview.js','utf8'));
+ w.eval(fs.readFileSync(__dirname+'/../build/brand.js','utf8'));w.eval(fs.readFileSync(__dirname+'/../build/pdf-preview.js','utf8'));
  w.dispatchEvent(new w.MessageEvent('message',{source:w,origin:w.location.origin,data:{source:'vtop-command-pdf',id:'pdf-1-1',kind:'loading'}}));
  const dialog=w.document.querySelector('#vtop-pdf-preview').shadowRoot.querySelector('dialog');dialog.getBoundingClientRect=()=>({left:20,right:980,top:20,bottom:700});
  dialog.dispatchEvent(new w.MouseEvent('click',{bubbles:true,clientX:500,clientY:300}));assert.equal(dialog.open,true);
@@ -127,7 +128,7 @@ test('preview Download keeps original PDF bytes and filename, and Close revokes 
  w.TextDecoder=TextDecoder;w.Blob=Blob;w.fetch=async()=>({arrayBuffer:async()=>bytes});
  w.URL.createObjectURL=()=> 'blob:https://vtop.vit.ac.in/original-copy';w.URL.revokeObjectURL=url=>revoked.push(url);
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
- w.eval(fs.readFileSync(__dirname+'/../brand.js','utf8'));w.eval(fs.readFileSync(__dirname+'/../pdf-preview.js','utf8'));
+ w.eval(fs.readFileSync(__dirname+'/../build/brand.js','utf8'));w.eval(fs.readFileSync(__dirname+'/../build/pdf-preview.js','utf8'));
  const send=(kind,extra={})=>w.dispatchEvent(new w.MessageEvent('message',{source:w,origin:w.location.origin,data:{source:'vtop-command-pdf',id:'pdf-1-1',kind,...extra}}));
  send('loading');send('ready',{bytes:samplePdf(),filename:'Lecture.pdf'});await pause();
  const shadow=w.document.querySelector('#vtop-pdf-preview').shadowRoot,download=shadow.querySelector('a');
@@ -199,7 +200,7 @@ test('preview mounts a fresh viewer frame per document and delivers bytes on loa
  w.TextDecoder=TextDecoder;w.Blob=Blob;w.fetch=async()=>({arrayBuffer:async()=>new TextEncoder().encode('%PDF-1.4').buffer});
  w.URL.createObjectURL=()=>'blob:https://vtop.vit.ac.in/copy';w.URL.revokeObjectURL=()=>{};
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
- w.eval(fs.readFileSync(__dirname+'/../brand.js','utf8'));w.eval(fs.readFileSync(__dirname+'/../pdf-preview.js','utf8'));
+ w.eval(fs.readFileSync(__dirname+'/../build/brand.js','utf8'));w.eval(fs.readFileSync(__dirname+'/../build/pdf-preview.js','utf8'));
  const shadow=w.document.querySelector('#vtop-pdf-preview').shadowRoot;
  const send=(id,kind,extra={})=>w.dispatchEvent(new w.MessageEvent('message',{source:w,origin:w.location.origin,data:{source:'vtop-command-pdf',id,kind,...extra}}));
  send('pdf-1-1','loading');send('pdf-1-1','ready',{bytes:samplePdf()});await pause();
@@ -227,7 +228,7 @@ function previewWindow({dark=false,extensionProtocol='moz-extension:'}={}){
  w.TextDecoder=TextDecoder;w.Blob=Blob;w.fetch=async()=>({arrayBuffer:async()=>new TextEncoder().encode('%PDF-1.4').buffer});
  w.URL.createObjectURL=()=>'blob:https://vtop.vit.ac.in/copy';w.URL.revokeObjectURL=()=>{};
  w.HTMLDialogElement.prototype.showModal=function(){this.open=true;};w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
- w.eval(fs.readFileSync(__dirname+'/../brand.js','utf8'));w.eval(fs.readFileSync(__dirname+'/../pdf-preview.js','utf8'));
+ w.eval(fs.readFileSync(__dirname+'/../build/brand.js','utf8'));w.eval(fs.readFileSync(__dirname+'/../build/pdf-preview.js','utf8'));
  const host=w.document.querySelector('#vtop-pdf-preview'),shadow=host.shadowRoot;
  const send=(id,kind,extra={})=>w.dispatchEvent(new w.MessageEvent('message',{source:w,origin:w.location.origin,data:{source:'vtop-command-pdf',id,kind,...extra}}));
  return{dom,w,host,shadow,send,listeners};

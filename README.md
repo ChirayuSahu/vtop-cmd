@@ -49,7 +49,17 @@ No extension can promise how VIT will treat it, but this one is designed to look
 
 Requires Node.js 24, npm 11 and Python 3.12+.
 
-The extension is written in TypeScript in `src/`. `tsc` compiles each file into a plain script at the repo root (no bundler), which is what the manifest, tests and build use; those compiled files are git-ignored.
+The extension is written in TypeScript. The repo is laid out as:
+
+| Folder | Contents |
+| --- | --- |
+| `src/` | TypeScript sources (edit these) |
+| `static/` | Files shipped as they are: `manifest.json`, the document viewer page, styles, icons, the CAPTCHA model and its license |
+| `vendor/` | Bundled third-party libraries (PDF.js, PowerPoint and Word renderers) |
+| `build/` | `tsc` output, one plain script per source file (git-ignored) |
+| `dist/` | Built Chrome and Firefox packages (git-ignored) |
+| `scripts/`, `tests/` | Packaging scripts and tests |
+| `website/` | The homepage (separate Next.js app) |
 
 ```bash
 npm ci

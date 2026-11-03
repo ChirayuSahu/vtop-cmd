@@ -4,9 +4,9 @@ const fs=require('node:fs');
 const {JSDOM}=require('jsdom');
 const pause=()=>new Promise(resolve=>setTimeout(resolve,35));
 function setup({query='',bytes,referrer}={}){
- const html=fs.readFileSync(__dirname+'/../pdf-viewer.html','utf8');
+ const html=fs.readFileSync(__dirname+'/../static/pdf-viewer.html','utf8');
  const dom=new JSDOM(html,{runScripts:'outside-only',url:`https://vtop.vit.ac.in/pdf-viewer.html${query}#scroll-test`,referrer,pretendToBeVisual:true}),w=dom.window;
- w.eval(fs.readFileSync(__dirname+'/../brand.js','utf8'));
+ w.eval(fs.readFileSync(__dirname+'/../build/brand.js','utf8'));
  const container=w.document.querySelector('#pages'),paints=[];let observer;
  Object.defineProperty(container,'clientWidth',{value:800});
  w.HTMLElement.prototype.getBoundingClientRect=function(){if(this===container)return{top:0,bottom:600};if(this.classList.contains('sheet')){const top=this.offsetTop-container.scrollTop;return{top,bottom:top+parseFloat(this.style.height)};}return{top:0,bottom:0};};
@@ -16,7 +16,7 @@ function setup({query='',bytes,referrer}={}){
  w.ResizeObserver=class{observe(){}};
  w.IntersectionObserver=class{constructor(callback){this.callback=callback;observer=this;}observe(element){this.callback([{target:element,isIntersecting:element.dataset.page==='1'}]);}};
  w.testPdf={GlobalWorkerOptions:{},VerbosityLevel:{ERRORS:0},getDocument:()=>({promise:Promise.resolve({numPages:3,getPage:async number=>({getViewport:({scale})=>({width:600*scale,height:800*scale}),render:()=>{paints.push(number);return{promise:Promise.resolve(),cancel(){}};},getTextContent:async()=>({items:[{str:`Sample page ${number}`} ]})})})})};
- let source=fs.readFileSync(__dirname+'/../pdf-viewer.mjs','utf8').replace(/^import \* as pdfjs[^\n]+\n/,'const pdfjs=window.testPdf;\n').replaceAll('import.meta.url',JSON.stringify('https://vtop.vit.ac.in/pdf-viewer.mjs'));
+ let source=fs.readFileSync(__dirname+'/../build/pdf-viewer.mjs','utf8').replace(/^import \* as pdfjs[^\n]+\n/,'const pdfjs=window.testPdf;\n').replaceAll('import.meta.url',JSON.stringify('https://vtop.vit.ac.in/pdf-viewer.mjs'));
  w.eval(source);
  w.dispatchEvent(new w.MessageEvent('message',{source:w,origin:'https://vtop.vit.ac.in',data:{type:'pdf-data',nonce:'scroll-test',bytes:bytes||new w.ArrayBuffer(8)}}));
  return{dom,w,container,paints,entries:entries=>observer.callback(entries)};

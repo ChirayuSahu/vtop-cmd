@@ -3,8 +3,8 @@ const assert=require('node:assert/strict');
 const vm=require('node:vm');
 const fs=require('node:fs');
 const {JSDOM}=require('jsdom');
-const source=fs.readFileSync(__dirname+'/../deadline-cache.js','utf8');
-const client=fs.readFileSync(__dirname+'/../deadline-cache-client.js','utf8');
+const source=fs.readFileSync(__dirname+'/../build/deadline-cache.js','utf8');
+const client=fs.readFileSync(__dirname+'/../build/deadline-cache-client.js','utf8');
 const entry=()=>({records:[{title:'Example assignment',time:Date.now()+86400000,dateOnly:true,submitted:false}],expires:Date.now()+2*3600000});
 function background({fail=false}={}){
  let listener;const data={},writes=[];

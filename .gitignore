@@ -10,5 +10,4 @@ vtop-cmd.zip
 __pycache__/
 
 # Compiled from src/*.ts by tsc (npm run compile)
-/*.js
-/*.mjs
+/build/

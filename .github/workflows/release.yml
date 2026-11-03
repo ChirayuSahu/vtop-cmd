@@ -30,10 +30,10 @@ jobs:
 
       - name: Check the tag matches the extension version and is on main
         run: |
-          version=$(node -p "require('./manifest.json').version")
+          version=$(node -p "require('./static/manifest.json').version")
           package=$(node -p "require('./package.json').version")
           if [ "$GITHUB_REF_NAME" != "v$version" ] || [ "$package" != "$version" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME must match manifest.json ($version) and package.json ($package)"
+            echo "::error::Tag $GITHUB_REF_NAME must match static/manifest.json ($version) and package.json ($package)"
             exit 1
           fi
           if ! git merge-base --is-ancestor "$GITHUB_SHA" origin/main; then

@@ -2,7 +2,7 @@ const {test} = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const {JSDOM} = require('jsdom');
-const source = fs.readFileSync(__dirname + '/../form-presets.js','utf8');
+const source = fs.readFileSync(__dirname + '/../build/form-presets.js','utf8');
 const html = `<main id="b5-pagewrapper"><h2>Late Hour Request</h2><form id="LateHourRequestForm"><label>Purpose<textarea name="purpose"></textarea></label><label>Category<select name="category"><option value="">Choose</option><option value="study">Study</option></select></label><label><input type="checkbox" name="notify">Notify me</label><input type="hidden" name="csrf" value="secret"><input name="captcha"><input type="file" name="attachment"><button type="submit">Submit</button></form></main>`;
 const pause = () => new Promise(resolve=>setTimeout(resolve,220));
 async function setup(markup=html, saved={}) {
@@ -11,7 +11,7 @@ async function setup(markup=html, saved={}) {
  w.HTMLDialogElement.prototype.close=function(){this.open=false;this.dispatchEvent(new w.Event('close'));};
  const store=structuredClone(saved); let fail=false;
  w.chrome={storage:{local:{get:async()=>store,set:async value=>{if(fail) throw Error('storage unavailable');Object.assign(store,structuredClone(value));}}}};
- for(const file of ['brand.js','combobox.js','search-select.js'])w.eval(fs.readFileSync(__dirname+'/../'+file,'utf8'));w.eval(source);await pause();
+ for(const file of ['brand.js','combobox.js','search-select.js'])w.eval(fs.readFileSync(__dirname+'/../build/'+file,'utf8'));w.eval(source);await pause();
  return {dom,w,store,fail:()=>{fail=true;},ui:w.document.querySelector('#vtop-form-presets').shadowRoot,open:()=>w.document.querySelector('.vtop-form-preset-bar').shadowRoot.querySelector('button').click()};
 }
 test('editor is independent, saves local values, restores on replacement, and never submits',async()=>{
@@ -59,7 +59,7 @@ test('preset semester and course values take precedence over existing automatic 
  const markup='<main id="b5-pagewrapper"><h2>Late Hour Request</h2><form id="LateHourRequestForm"><select id="semesterSubId"><option value="fall">Fall Semester 2026-27</option><option value="winter">Winter Semester 2026-27</option></select><select id="courseId"><option value="c1">Course 1</option><option value="c2">Course 2</option></select></form></main>';
  const s=await setup(markup);s.open();const selects=s.ui.querySelectorAll('select');selects[0].value='winter';selects[1].value='c2';s.ui.querySelector('.save').click();await pause();
  const w=s.w;w.chrome.storage.local.get=async()=>({...s.store,defaultSemester:{value:'fall',label:'Fall Semester 2026-27'}});
- for(const file of ['brand.js','combobox.js','navigation.js','semesters.js','enhancements.js','content.js'])w.eval(fs.readFileSync(__dirname+'/../'+file,'utf8'));
+ for(const file of ['brand.js','combobox.js','navigation.js','semesters.js','enhancements.js','content.js'])w.eval(fs.readFileSync(__dirname+'/../build/'+file,'utf8'));
  await pause();assert.equal(w.document.querySelector('#semesterSubId').value,'winter');assert.equal(w.document.querySelector('#courseId').value,'c2');s.dom.window.close();
 });
 
@@ -154,7 +154,7 @@ test('other pages ignore legacy saved presets and never own their controls',asyn
 });
 test('a searchable multiple select applies each pick through VTOP\'s change handler',async()=>{
  const markup='<main id="b5-pagewrapper"><h2>Leave Request</h2><form id="LeaveRequestForm"><label>Days<select id="days" name="days" multiple><option value="mon">Monday</option><option value="tue">Tuesday</option><option value="wed">Wednesday</option></select></label><button type="submit">Submit</button></form></main>';
- const s=await setup(markup);for(const file of ['page-runtime.js','page-actions.js'])s.w.eval(fs.readFileSync(__dirname+'/../'+file,'utf8'));
+ const s=await setup(markup);for(const file of ['page-runtime.js','page-actions.js'])s.w.eval(fs.readFileSync(__dirname+'/../build/'+file,'utf8'));
  let changes=0,submits=0;const days=s.w.document.querySelector('#days'),chosen=()=>[...days.selectedOptions].map(o=>o.value);days.addEventListener('change',()=>changes++);s.w.document.addEventListener('submit',e=>{e.preventDefault();submits++;});
  const picker=s.w.document.querySelector('.vtop-search-select').shadowRoot,input=picker.querySelector('input');
  const pick=async label=>{input.dispatchEvent(new s.w.Event('focus'));const item=[...picker.querySelectorAll('[role=option]')].find(i=>i.textContent.includes(label));assert.ok(item,label);item.click();await pause();};
