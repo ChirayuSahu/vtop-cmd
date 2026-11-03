@@ -274,7 +274,7 @@ test('shortcut setting records, saves, applies, restores across tabs, and resets
   const {dom,shadow,key,writes,removals}=setup({platform:'Win32'}); await flush();
   shadow.querySelector('.shortcut-button').click();
   shadow.querySelector('.record-shortcut').click();
-  for (const [value, code] of [['C','KeyC'],['V','KeyV'],['X','KeyX'],['A','KeyA'],['Z','KeyZ'],['F','KeyF'],['R','KeyR'],['P','KeyP'],['S','KeyS'],['L','KeyL'],['1','Digit1']]) {
+  for (const [value, code] of [['C','KeyC'],['V','KeyV'],['X','KeyX'],['A','KeyA'],['Z','KeyZ'],['F','KeyF'],['R','KeyR'],['P','KeyP'],['S','KeyS'],['L','KeyL'],['Y','KeyY'],['1','Digit1']]) {
     key(value,{code,ctrlKey:true});
     assert.match(shadow.querySelector('.shortcut-status').textContent,/reserved/);
   }

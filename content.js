@@ -261,7 +261,7 @@
     }
     const primaryHeld = shortcut.mac ? event.metaKey && !event.ctrlKey : event.ctrlKey && !event.metaKey;
     const key = event.key.toLowerCase();
-    const reservedKey = /^(?:[0-9]|[acflprsvxz])$/.test(key);
+    const reservedKey = /^(?:[0-9]|[acflprsvxyz])$/.test(key);
     if (!primaryHeld || reservedKey || !/^(?:[a-z0-9]|f(?:[1-9]|1[0-2]))$/i.test(key) ||
         !/^(?:Key[A-Z]|Digit[0-9]|F(?:[1-9]|1[0-2]))$/.test(event.code)) {
       shadow.querySelector('.shortcut-status').textContent = `That key combination is reserved. Choose ${shortcut.mac ? 'Command' : 'Ctrl'} plus another letter or an F1–F12 key.`;
