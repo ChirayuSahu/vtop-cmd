@@ -6,17 +6,15 @@ It runs only on `vtop.vit.ac.in/vtop/`, talks to no other server, and never subm
 
 ## Install
 
-Download the files from the [latest release](https://github.com/ChirayuSahu/vtop-cmd/releases/latest).
-
 **Firefox / Zen**
 
-1. Download `vtop-command-<version>.xpi`.
-2. Open `about:addons`, click the gear icon and choose **Install Add-on From File…**.
-3. Select the file and confirm.
+Install [VTOP Command from Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/vtop-cmd/) and click **Add to Firefox**. It updates automatically.
+
+If the listing is still in review, download the signed `vtop-command-<version>.xpi` from the [latest release](https://github.com/ChirayuSahu/vtop-cmd/releases/latest), open `about:addons`, click the gear icon, choose **Install Add-on From File…** and select it.
 
 **Chrome / Brave**
 
-1. Download `vtop-command-<version>.zip` and unzip it.
+1. Download `vtop-command-<version>.zip` from the [latest release](https://github.com/ChirayuSahu/vtop-cmd/releases/latest) and unzip it.
 2. Open `chrome://extensions` (or `brave://extensions`) and turn on **Developer mode**.
 3. Click **Load unpacked** and select the unzipped folder.
 

@@ -29,7 +29,7 @@ function Downloads({ chromeUrl, firefoxUrl }: { chromeUrl: string; firefoxUrl: s
   return (
     <div className="flex flex-wrap justify-center gap-2.5">
       <Button href={firefoxUrl} tone="soft">
-        Download for Firefox
+        Get it for Firefox
       </Button>
       <Button href={chromeUrl}>
         Download for Chrome <Arrow />
@@ -74,7 +74,7 @@ function StructuredData({ version, chromeUrl, firefoxUrl }: { version: string | 
 
 async function Home() {
   await connection();
-  const { version, chromeUrl, firefoxUrl } = await getLatestRelease();
+  const { version, chromeUrl, firefoxUrl, xpiUrl } = await getLatestRelease();
 
   return (
     <div className="flex flex-1 flex-col overflow-x-clip">
@@ -274,51 +274,62 @@ async function Home() {
             {[
               {
                 name: "Firefox & Zen",
-                url: firefoxUrl,
-                file: ".xpi file",
                 steps: [
                   <>
-                    Open <B>about:addons</B>, click the gear icon and choose <B>Install Add-on From File</B>.
+                    Open VTOP Command on{" "}
+                    <a href={firefoxUrl} className="font-medium text-accent hover:underline">
+                      Firefox Add-ons
+                    </a>
+                    .
                   </>,
-                  <>Select the file and confirm.</>,
+                  <>
+                    Click <B>Add to Firefox</B> and confirm.
+                  </>,
+                  <>It updates itself from then on.</>,
                 ],
+                note: (
+                  <>
+                    Listing still in review? Install the signed{" "}
+                    <a href={xpiUrl} className="font-medium text-accent hover:underline">
+                      .xpi file
+                    </a>{" "}
+                    from <B>about:addons</B> → gear icon → <B>Install Add-on From File</B>.
+                  </>
+                ),
               },
               {
                 name: "Chrome & Brave",
-                url: chromeUrl,
-                file: ".zip file",
                 steps: [
                   <>
-                    Unzip it, open <B>chrome://extensions</B> and turn on <B>Developer mode</B>.
+                    Download the{" "}
+                    <a href={chromeUrl} className="font-medium text-accent hover:underline">
+                      .zip file
+                    </a>{" "}
+                    and unzip it.
+                  </>,
+                  <>
+                    Open <B>chrome://extensions</B> and turn on <B>Developer mode</B>.
                   </>,
                   <>
                     Click <B>Load unpacked</B> and select the unzipped folder.
                   </>,
                 ],
+                note: null,
               },
             ].map((browser, index) => (
               <Reveal key={browser.name} delay={index * 120} className="rounded-3xl border border-line p-6">
                 <h3 className="font-medium">{browser.name}</h3>
                 <ol className="mt-4 space-y-3 text-sm text-muted">
-                  <li className="flex gap-3">
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-soft text-xs text-ink">1</span>
-                    <span>
-                      Download the{" "}
-                      <a href={browser.url} className="font-medium text-accent hover:underline">
-                        {browser.file}
-                      </a>
-                      .
-                    </span>
-                  </li>
                   {browser.steps.map((step, stepIndex) => (
                     <li key={stepIndex} className="flex gap-3">
                       <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-soft text-xs text-ink">
-                        {stepIndex + 2}
+                        {stepIndex + 1}
                       </span>
                       <span>{step}</span>
                     </li>
                   ))}
                 </ol>
+                {browser.note && <p className="mt-4 border-t border-line pt-4 text-xs text-muted">{browser.note}</p>}
               </Reveal>
             ))}
           </div>
@@ -396,8 +407,8 @@ async function Home() {
 
           <div className="mx-auto grid max-w-lg grid-cols-2 gap-3 text-left lg:mx-0">
             {[
-              { name: "Chrome & Brave", file: ".zip", url: chromeUrl },
-              { name: "Firefox & Zen", file: ".xpi", url: firefoxUrl },
+              { name: "Chrome & Brave", action: "Download the .zip", url: chromeUrl },
+              { name: "Firefox & Zen", action: "Get it on Firefox Add-ons", url: firefoxUrl },
             ].map((download) => (
               <a
                 key={download.name}
@@ -406,7 +417,7 @@ async function Home() {
               >
                 <span className="block text-sm font-semibold">{download.name}</span>
                 <span className="mt-1 block text-xs text-white/50">
-                  Download the {download.file}
+                  {download.action}
                   {version ? ` · v${version}` : ""}
                 </span>
               </a>
