@@ -14,7 +14,7 @@ test('Chrome manifest uses a service worker and preserves shared document viewer
  const {chrome,firefox,original}=JSON.parse(result.stdout);
  assert.deepEqual(firefox,original,'Firefox source manifest remains unchanged');
  assert.deepEqual(chrome.background,{service_worker:'extension-background.js'});
- assert.equal(chrome.browser_specific_settings,undefined);assert.equal(chrome.version,'1.2.1');
+ assert.equal(chrome.browser_specific_settings,undefined);assert.equal(chrome.version,original.version);
  assert.deepEqual(chrome.permissions,['storage']);
  const directives=policy=>Object.fromEntries(policy.split(';').filter(rule=>rule.trim()).map(rule=>{const [name,...values]=rule.trim().split(/\s+/);return [name,values];}));
  const chromePolicy=directives(chrome.content_security_policy.extension_pages);
