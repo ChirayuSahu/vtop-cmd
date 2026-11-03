@@ -49,11 +49,13 @@ No extension can promise how VIT will treat it, but this one is designed to look
 
 Requires Node.js 24, npm 11 and Python 3.12+.
 
+The extension is written in TypeScript in `src/`. `tsc` compiles each file into a plain script at the repo root (no bundler), which is what the manifest, tests and build use; those compiled files are git-ignored.
+
 ```bash
 npm ci
-npm run check   # syntax check
-npm test        # unit and DOM tests
-npm run build   # Chrome and Firefox packages in dist/
+npm run check   # type check
+npm test        # compile, then unit and DOM tests
+npm run build   # compile, then Chrome and Firefox packages in dist/
 npm run source  # source archive for Firefox Add-ons review
 ```
 
