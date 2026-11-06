@@ -34,7 +34,7 @@ type VtopTheme = 'light' | 'dark' | 'oled' | 'blue';
     dark: '--surface:#171d29;--text:#edf1fa;--muted:#97a4bb;--line:#2a3344;--hover:#242f46;--accent:#a9beff;--backdrop:#0e131c',
     themes: {
       light: '--surface:#fff;--text:#182438;--muted:#748093;--line:#e8ecf2;--hover:#f0f4fb;--accent:#3664d9;--backdrop:#eef1f6',
-      dark: '--surface:#202020;--text:#e6e1d8;--muted:#aaa69f;--line:#303030;--hover:#292929;--accent:#4d9cf7;--backdrop:#181818',
+      dark: '--surface:#202020;--text:#e5e5e5;--muted:#aaa;--line:#303030;--hover:#292929;--accent:#4d9cf7;--backdrop:#181818',
       oled: '--surface:#000;--text:#f5f5f5;--muted:#aaa;--line:#292929;--hover:#111;--accent:#fff;--backdrop:#000',
       blue: '--surface:#171d29;--text:#edf1fa;--muted:#97a4bb;--line:#2a3344;--hover:#242f46;--accent:#a9beff;--backdrop:#0e131c'
     }
