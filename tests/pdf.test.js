@@ -70,9 +70,9 @@ test('POST download forms retain fields; non-download/file-upload forms are left
  form.action='/vtop/upload';form.submit();assert.equal(calls.at(-1).native,true);
  form.action='/vtop/download/upload';form.innerHTML='<input type="file">';form.submit();assert.equal(calls.at(-1).native,true);dom.window.close();
 });
-test('expired sessions show an error instead of downloading HTML as PDF',async()=>{
- const {dom,w,messages,downloads}=bridge({body:'<html>Sign in</html>',type:'text/html'});w.open('/vtop/download/file');await pause();
- assert.ok(messages.some(m=>m.kind==='error'));assert.equal(downloads.length,0);dom.window.close();
+test('failed preview requests fall back to VTOP\'s original download navigation',async()=>{
+ const {dom,w,messages,opens,downloads}=bridge({body:'<html>Sign in</html>',type:'text/html'});w.open('/vtop/download/file');await pause();
+ assert.ok(messages.some(m=>m.kind==='not-pdf'));assert.equal(opens.length,1);assert.equal(downloads.length,0);dom.window.close();
 });
 test('PDF resources are bundled locally and MAIN interception is scoped only to VTOP',()=>{
  const manifest=JSON.parse(fs.readFileSync(__dirname+'/../static/manifest.json'));

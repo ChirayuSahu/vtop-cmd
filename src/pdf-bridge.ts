@@ -95,7 +95,10 @@
       // Send bytes directly; Firefox content scripts cannot reliably fetch page-owned blob URLs.
       const bytes = await blob.arrayBuffer();
       emit('ready',id,{bytes,filename:name,documentType:'pdf'});
-    } catch (error) { emit('error',id,{message:(error as Error).message || 'Unable to preview this document.'}); }
+    } catch (error) {
+      if (fallback) { emit('not-pdf',id); fallback(); return; }
+      emit('error',id,{message:(error as Error).message || 'Unable to preview this document.'});
+    }
   }
   function handleAnchor(anchor: HTMLAnchorElement) {
     if (bypassClick || anchor.dataset.vtopPdfBypass === 'true') return false;
@@ -107,15 +110,22 @@
     const isDataPdf=/^data:application\/pdf(?:[;,])/i.test(url);
     const explicitFile=localURL(url)&&(anchor.hasAttribute('download')||anchor.type==='application/pdf'||downloadHint(controlHint(anchor)));
     if (!candidate(url) && !isBlob && !isDataPdf && !explicitFile) return false;
-    preview(url,undefined,anchor.download || undefined,undefined,pdfBlobs.get(url)); return true;
+    // Some VTOP handlers rely on browser navigation semantics that a fetch cannot reproduce. If previewing
+    // fails, replay the original anchor click once with this bridge bypassed so the browser can still download it.
+    const fallback = () => {
+      bypassClick = true;
+      try { originalClick.call(anchor); } finally { setTimeout(() => { bypassClick = false; }, 0); }
+    };
+    preview(url,undefined,anchor.download || undefined,fallback,pdfBlobs.get(url)); return true;
   }
   // vtopDownload() opens `<endpoint>?authorizedID=…&_csrf=…`; a CSRF token in a popup URL marks a download.
   const tokenURL = (value: URLInput) => { try { return new URL(value as string | URL,document.baseURI).searchParams.has('_csrf'); } catch { return false; } };
   window.open = function (url, ...args) {
     if (!bypassClick && (candidate(url) || pdfBlobs.has(url as string) || /^data:application\/pdf(?:[;,])/i.test(String(url)) || localURL(url)&&(pendingDownload()||tokenURL(url)))) {
       const href = new URL(url as string | URL,document.baseURI).href;
-      // Only the token heuristic may be wrong about a page; known download endpoints keep the session-expired error.
-      const fallback = candidate(url) || pdfBlobs.has(href) ? undefined : () => originalOpen.call(window,href,...args);
+      // Fall back to VTOP's original popup on any failed preview. Some endpoints depend on navigation-only
+      // behaviour (rather than fetch) and the native path remains the most reliable final download route.
+      const fallback = () => originalOpen.call(window,href,...args);
       preview(href,undefined,undefined,fallback,pdfBlobs.get(href)); return null;
     }
     return originalOpen.call(this,url,...args);
