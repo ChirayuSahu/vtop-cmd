@@ -12,8 +12,8 @@
   type IncomingMessage = Partial<ViewerMessage & BridgeMessage> | null | undefined;
   // Same surface, header and button language as the command menu (content.js).
   globalThis.VtopBrand.setMarkup(shadow, `<style>
-    :host{all:initial;color-scheme:light;${tokens.light};font:${font};color:var(--text)}
-    :host([data-dark]){color-scheme:dark;${tokens.dark}}
+    :host{all:initial;color-scheme:light;${tokens.themes.light};font:${font};color:var(--text)}
+    :host([data-theme="dark"]){color-scheme:dark;${tokens.themes.dark}}:host([data-theme="oled"]){color-scheme:dark;${tokens.themes.oled}}:host([data-theme="blue"]){color-scheme:dark;${tokens.themes.blue}}
     *{box-sizing:border-box}
     dialog{padding:0;margin:auto;width:min(1200px,calc(100vw - 28px));height:calc(100vh - 48px);max-width:none;max-height:none;border:1px solid var(--line);border-radius:20px;background:var(--surface);color:var(--text);box-shadow:0 24px 100px #0005;overflow:hidden}
     dialog[open]{display:flex;flex-direction:column}
@@ -35,11 +35,12 @@
   const viewerURL=chrome.runtime.getURL('pdf-viewer.html');
   const parsedViewerURL=new URL(viewerURL);
   const viewerOrigin=parsedViewerURL.protocol==='moz-extension:' ? `${parsedViewerURL.protocol}//${parsedViewerURL.host}` : parsedViewerURL.origin;
-  let activeId: string|null|undefined,blobURL: string|null|undefined,previousFocus: (Element & HTMLOrSVGElement)|null|undefined,nonce: string|undefined,bytes: ArrayBuffer|null|undefined,filename: string|undefined,documentType: string|undefined,frame: HTMLIFrameElement|null|undefined,received: boolean|undefined,watchdog: ReturnType<typeof setTimeout>|undefined,dark=false;
-  function setTheme(value: boolean){dark=value;host.toggleAttribute('data-dark',dark);}
+  let activeId: string|null|undefined,blobURL: string|null|undefined,previousFocus: (Element & HTMLOrSVGElement)|null|undefined,nonce: string|undefined,bytes: ArrayBuffer|null|undefined,filename: string|undefined,documentType: string|undefined,frame: HTMLIFrameElement|null|undefined,received: boolean|undefined,watchdog: ReturnType<typeof setTimeout>|undefined,theme:VtopTheme='light';
+  const validTheme=(value:unknown):value is VtopTheme=>['light','dark','oled','blue'].includes(String(value));
+  function setTheme(value:unknown){theme=validTheme(value)?value:'light';host.dataset.theme=theme;host.toggleAttribute('data-dark',theme!=='light');}
   try {
-    chrome.storage.local.get('darkMode').then(settings=>setTheme(settings.darkMode===true)).catch(()=>{});
-    chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.darkMode)setTheme(changes.darkMode.newValue===true);});
+    chrome.storage.local.get(['theme','darkMode']).then(settings=>setTheme(settings.theme ?? (settings.darkMode===true?'blue':'light'))).catch(()=>{});
+    chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.theme)setTheme(changes.theme.newValue);else if(area==='local'&&changes.darkMode)setTheme(changes.darkMode.newValue===true?'blue':'light');});
   } catch { /* Preview without the extension runtime. */ }
   function release(){ clearTimeout(watchdog);if(blobURL)URL.revokeObjectURL(blobURL);blobURL=null;bytes=null;frame?.remove();frame=null;download.removeAttribute('href');download.hidden=true; }
   function deliver(){ if(bytes&&frame?.contentWindow&&!received)frame.contentWindow.postMessage({type:'pdf-data',nonce,bytes:bytes.slice(0),filename,documentType},viewerOrigin); }
@@ -48,7 +49,7 @@
     nonce=crypto.randomUUID();received=false;
     frame=document.createElement('iframe');frame.title='Document viewer';frame.addEventListener('load',deliver);
     // The theme rides along in the URL so the viewer paints in the right colours from the first frame.
-    frame.src=`${viewerURL}?theme=${dark?'dark':'light'}&type=${encodeURIComponent(type)}#${nonce}`;dialog.append(frame);
+    frame.src=`${viewerURL}?theme=${theme}&type=${encodeURIComponent(type)}#${nonce}`;dialog.append(frame);
     watchdog=setTimeout(()=>{status.textContent='The viewer did not respond. Use Download to save the document, or retry the link.';},15000);
   }
   function close(){if(dialog.open)dialog.close();}

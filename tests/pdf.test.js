@@ -238,7 +238,7 @@ test('preview shares the command menu palette and follows the saved dark mode, p
  assert.equal(host.hasAttribute('data-dark'),true);assert.match(shadow.querySelector('style').textContent,/--surface:#171d29/);
  assert.match(shadow.querySelector('.brand').textContent,/VTOP \/ PREVIEW/);assert.equal(shadow.querySelector('.close').textContent,'Esc');
  send('pdf-1-1','loading');send('pdf-1-1','ready',{bytes:samplePdf()});await pause();
- assert.match(shadow.querySelector('iframe').src,/\?theme=dark&\btype=pdf#/);
+ assert.match(shadow.querySelector('iframe').src,/\?theme=blue&\btype=pdf#/);
  listeners.forEach(listener=>listener({darkMode:{newValue:false}},'local'));assert.equal(host.hasAttribute('data-dark'),false);dom.window.close();
 });
 test('PPTX and legacy PPT previews route bytes to their presentation viewers',async()=>{
