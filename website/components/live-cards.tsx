@@ -77,7 +77,7 @@ export function TypingMenu() {
       <div className="flex items-center gap-2.5 border-b border-line px-3.5 py-3">
         <Logo size={18} />
         <span className="flex flex-1 items-center truncate text-sm">
-          {query || <span className="text-muted">Search VTOP…</span>}
+          {query}
           <span className="caret ml-px inline-block h-4 w-px bg-ink" />
         </span>
         <kbd className="rounded-md border border-line px-1.5 py-0.5 font-mono text-[10px] text-muted">⌘ K</kbd>

@@ -91,7 +91,7 @@ async function Home() {
             <a href="#install" className="transition-colors hover:text-white">Install</a>
             <a href={REPO_URL} className="transition-colors hover:text-white">GitHub</a>
           </div>
-          <a href="#download" className="btn btn-default rounded-xl text-[13px]">
+          <a href="#download" className="btn btn-default btn-compact text-[13px]">
             <span className="btn-face h-[30px] px-4">Download</span>
           </a>
         </nav>

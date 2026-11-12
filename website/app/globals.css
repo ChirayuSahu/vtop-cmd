@@ -103,11 +103,13 @@ body {
 
 @layer components {
   .btn {
+    --btn-radius: 9999px;
+    --btn-edge: 1.5px;
     position: relative;
     isolation: isolate;
     display: inline-flex;
-    padding: 1.5px;
-    border-radius: 9999px;
+    padding: var(--btn-edge);
+    border-radius: var(--btn-radius);
     background: var(--btn-ring);
     font-size: 0.875rem;
     font-weight: 500;
@@ -160,6 +162,10 @@ body {
     outline: none;
   }
 
+  .btn-compact {
+    --btn-radius: 0.75rem;
+  }
+
   .btn-face {
     display: inline-flex;
     flex: 1;
@@ -168,7 +174,7 @@ body {
     gap: 0.5rem;
     height: calc(2.5rem - 3px);
     padding: 0 1.25rem;
-    border-radius: inherit;
+    border-radius: calc(var(--btn-radius) - var(--btn-edge));
     background: var(--btn-bg);
     color: var(--btn-text);
     transition: background-color 0.2s ease;
