@@ -18,6 +18,7 @@
   const createURL = URL.createObjectURL.bind(URL);
   const revokeURL = URL.revokeObjectURL.bind(URL);
   const pdfBlobs = new Map<string, Blob>();
+  const nativeDownloads = new Map<string, () => void>();
   URL.createObjectURL = function (blob) {
     const url = createURL(blob);
     // Untyped blobs are common for AJAX downloads; preview() sniffs the bytes before showing them.
@@ -89,6 +90,12 @@
     bypassTimer = setTimeout(() => { bypassClick = false; }, 1500);
   }
   function emit(kind: string, id: string, extra: Record<string, unknown> = {}) { window.postMessage({ source: 'vtop-command-pdf', kind, id, ...extra }, location.origin); }
+  window.addEventListener('message',event => {
+    const message=event.data;
+    if(event.source!==window||event.origin!==location.origin||message?.source!=='vtop-command-pdf-download'||typeof message.id!=='string')return;
+    const native=nativeDownloads.get(message.id);if(!native)return;
+    nativeDownloads.delete(message.id);native();
+  });
   function download(blob: Blob, name: string) {
     const url = createURL(blob), anchor = document.createElement('a');
     anchor.href = url; anchor.download = name; anchor.dataset.vtopPdfBypass = 'true'; nativeURLs.add(url);
@@ -98,6 +105,7 @@
   async function preview(url: string, init?: RequestInit, suggestedName?: string, fallback?: () => void, source?: Blob, saveOnly = false) {
     downloadIntent=null;
     const id = `pdf-${Date.now()}-${++sequence}`;
+    if (fallback) nativeDownloads.set(id,fallback);
     if (!saveOnly) emit('loading',id);
     try {
       const response = source ? null : await nativeFetch(url,{credentials:'same-origin',...init});
@@ -130,16 +138,16 @@
         if (isPptx || isLegacyPpt || isDocx || isLegacyDoc) {
           const bytes = await blob.arrayBuffer();
           const documentType = isPptx ? 'pptx' : isLegacyPpt ? 'ppt' : isDocx ? 'docx' : 'doc';
-          emit('ready',id,{bytes,filename:name,documentType});
+          emit('ready',id,{bytes,filename:name,documentType,nativeDownload:!!fallback});
           return;
         }
         download(blob,name); emit('not-pdf',id); return;
       }
       // Send bytes directly; Firefox content scripts cannot reliably fetch page-owned blob URLs.
       const bytes = await blob.arrayBuffer();
-      emit('ready',id,{bytes,filename:name,documentType:'pdf'});
+      emit('ready',id,{bytes,filename:name,documentType:'pdf',nativeDownload:!!fallback});
     } catch (error) {
-      if (fallback) { emit('not-pdf',id); fallback(); return; }
+      if (fallback) { nativeDownloads.delete(id);emit('not-pdf',id); fallback(); return; }
       emit('error',id,{message:(error as Error).message || 'Unable to preview this document.'});
     }
   }

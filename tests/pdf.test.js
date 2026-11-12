@@ -187,6 +187,12 @@ test('modifier-clicking preview Download still starts a native file download',as
  shadow.querySelector('.download').dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));
  assert.deepEqual(clicks,[{href:'blob:https://vtop.vit.ac.in/copy',name:'Lecture.pdf',bypass:'true'}]);dom.window.close();
 });
+test('preview Download replays the original native request when available',async()=>{
+ const {dom,w,shadow,send}=previewWindow(),requests=[];w.postMessage=(data,origin)=>requests.push({data,origin});
+ send('pdf-1-1','loading');send('pdf-1-1','ready',{bytes:samplePdf(),filename:'Lecture.pdf',nativeDownload:true});await pause();
+ shadow.querySelector('.download').dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true}));
+ assert.deepEqual(requests,[{data:{source:'vtop-command-pdf-download',id:'pdf-1-1'},origin:'https://vtop.vit.ac.in'}]);dom.window.close();
+});
 test('real Curriculum button submits curriculDown form to the viewer once with authenticated POST fields',async()=>{
  const {dom,w,calls,messages}=bridge();const form=w.document.createElement('form');form.id='curriculumDownloadForm';form.method='post';form.action='academics/curriculDown/';
  form.innerHTML='<input type="hidden" name="_csrf" value="mock-csrf"><input type="hidden" name="authorizedID" value="mock-user"><input type="hidden" name="regNo" value="mock-registration">';
