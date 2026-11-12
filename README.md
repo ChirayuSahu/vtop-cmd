@@ -78,8 +78,8 @@ Tests use made-up data shaped like VTOP's markup; no account data is included.
 Pull requests must pass CI (checks, tests, both builds and `web-ext lint`) before merging into `main`. To release, bump the version in `static/manifest.json` and `package.json`, merge to `main`, then tag it:
 
 ```bash
-git tag v1.2.2 origin/main
-git push origin v1.2.2
+git tag v1.2.3 origin/main
+git push origin v1.2.3
 ```
 
 The release workflow builds and publishes the Chrome ZIP. Get the Firefox ZIP signed by Mozilla and attach the signed `.xpi` to the release afterwards.
