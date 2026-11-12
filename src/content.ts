@@ -10,11 +10,11 @@
   const combobox = globalThis.VtopCombobox;
   // Shapes this script stores in chrome.storage.local (read back as untrusted and re-validated).
   interface StoredSemesters { list?: Partial<VtopSemesterChoice>[]; updated?: number }
-  interface StoredSettings { darkMode?: boolean; defaultSemester?: VtopSemesterChoice | null; knownSemesters?: StoredSemesters; commandShortcut?: Partial<VtopShortcutBinding> }
+  interface StoredSettings { theme?: VtopTheme; darkMode?: boolean; defaultSemester?: VtopSemesterChoice | null; knownSemesters?: StoredSemesters; commandShortcut?: Partial<VtopShortcutBinding> }
   globalThis.VtopBrand.setMarkup(shadow, `
     <style>
-      :host{all:initial;color-scheme:light;${tokens.light};font:${font};color:var(--text)}
-      :host([data-dark]){color-scheme:dark;${tokens.dark}}
+      :host{all:initial;color-scheme:light;${tokens.themes.light};font:${font};color:var(--text)}
+      :host([data-theme="dark"]){color-scheme:dark;${tokens.themes.dark}}:host([data-theme="oled"]){color-scheme:dark;${tokens.themes.oled}}:host([data-theme="blue"]){color-scheme:dark;${tokens.themes.blue}}
       *{box-sizing:border-box}button,input{font:inherit}button{cursor:pointer}button:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
       .dock{position:fixed;right:18px;bottom:18px;z-index:2147483645;display:flex;gap:2px;align-items:center;padding:4px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--muted);box-shadow:0 2px 10px #0000001a}
       .dock button{display:flex;align-items:center;gap:7px;border:0;border-radius:8px;background:transparent;color:inherit;padding:4px 8px;font-size:12px;font-weight:500;white-space:nowrap}.dock button:hover{background:var(--hover);color:var(--text)}
@@ -25,7 +25,7 @@
       dialog{padding:0;margin:12vh auto 0;width:min(620px,calc(100vw - 28px));max-height:78vh;border:1px solid var(--line);border-radius:20px;background:var(--surface);color:var(--text);box-shadow:0 24px 100px #0005;overflow:hidden}
       dialog::backdrop{background:#10182788;backdrop-filter:blur(5px)}
       header{display:flex;gap:12px;align-items:center;padding:20px 22px 12px}.brand{font-size:11px;font-weight:750;letter-spacing:2px;color:var(--muted)}.spacer{flex:1}
-      .theme,.close,.semester-button,.shortcut-button{border:1px solid var(--line);border-radius:8px;color:var(--muted);background:transparent;padding:5px 8px;font-size:12px}
+      .theme,.close,.semester-button,.shortcut-button{border:1px solid var(--line);border-radius:8px;color:var(--muted);background:transparent;padding:5px 8px;font-size:12px}.theme{width:76px;height:30px;appearance:auto;text-align:left}.theme:hover{border-color:var(--accent);color:var(--text)}
       [hidden]{display:none!important}.semester-settings{padding:8px 22px 24px}.semester-settings h2{font-size:20px;margin:8px 0}.semester-settings p{color:var(--muted);font-size:13px}.semester-settings label{display:block;margin:18px 0 8px;font-size:12px;font-weight:600}.semester-actions{display:flex;gap:10px;margin-top:20px}.semester-actions button{padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:var(--hover);color:var(--text)}.semester-actions button:disabled{opacity:.5;cursor:default}.semester-button{max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .shortcut-settings{padding:8px 22px 24px}.shortcut-settings h2{font-size:20px;margin:8px 0}.shortcut-settings p{color:var(--muted);font-size:13px}.shortcut-current{display:inline-block;margin:4px 0 10px;padding:4px 9px;border:1px solid var(--line);border-radius:6px;font-weight:600}.shortcut-actions{display:flex;gap:10px;margin-top:16px}.shortcut-actions button{padding:9px 13px;border:1px solid var(--line);border-radius:8px;background:var(--hover);color:var(--text)}
       .search{display:flex;align-items:center;gap:14px;margin:0 22px 16px}.search span{font-size:24px;color:var(--accent)}input{width:100%;padding:7px 0;border:0;outline:none;background:transparent;color:var(--text);font-size:21px;letter-spacing:-.5px}input::placeholder{color:var(--muted)}
@@ -38,7 +38,7 @@
     </style>
     <div class="dock"><button class="launcher" type="button" aria-label="Open VTOP command menu" title="Jump to a VTOP page">${logo}<kbd class="shortcut"></kbd></button><span class="sep" aria-hidden="true"></span><button class="semester-chip" type="button" aria-label="Change default semester">Set semester</button></div>
     <dialog aria-label="VTOP command menu">
-      <header><span class="brand">${logo}VTOP / COMMAND</span><span class="spacer"></span><button class="shortcut-button" type="button">Shortcut</button><button class="semester-button" type="button" aria-label="Choose default semester">Semester</button><button class="theme" type="button"></button><button class="close" type="button" aria-label="Close command menu">Esc</button></header>
+      <header><span class="brand">${logo}VTOP / COMMAND</span><span class="spacer"></span><button class="shortcut-button" type="button">Shortcut</button><button class="semester-button" type="button" aria-label="Choose default semester">Semester</button><select class="theme" aria-label="Theme"><option value="light">Light</option><option value="dark">Dark</option><option value="oled">OLED</option><option value="blue">Blue</option></select><button class="close" type="button" aria-label="Close command menu">Esc</button></header>
       <section class="semester-settings" hidden aria-labelledby="semester-title">
         <h2 id="semester-title">Choose your default semester</h2>
         <p class="semester-help">We'll select this semester whenever a VTOP page asks for one. You can still change it on any page.</p>
@@ -61,7 +61,7 @@
   const dialog = shadow.querySelector('dialog')!;
   const input = shadow.querySelector<HTMLInputElement>('.search input')!;
   const list = shadow.querySelector<HTMLDivElement>('.results')!;
-  let commands: VtopMenuCommand[] = [], filtered: VtopCommand[] = [], selected = 0, usage: VtopUsage = {}, usageRevision = 0, previousFocus: Element | null | undefined, dark = false;
+  let commands: VtopMenuCommand[] = [], filtered: VtopCommand[] = [], selected = 0, usage: VtopUsage = {}, usageRevision = 0, previousFocus: Element | null | undefined, theme: VtopTheme = 'light';
   let defaultSemester: VtopSemesterChoice | null = null, preferencesReady = false, prompted = false, semesterView = false, shortcutView = false;
   let pendingShortcut: VtopShortcutBinding | null = null, recordingShortcut = false;
   // The default semester is applied once per page visit. A visit starts on load or when a VTOP page is opened from
@@ -308,16 +308,22 @@
   });
   shadow.querySelector('.back-shortcut')!.addEventListener('click', () => { discardShortcutChange(); showPages(); render(); input.focus(); });
 
-  function setTheme(value: boolean) {
-    dark = value;
-    document.documentElement.toggleAttribute('data-vtop-command-dark', dark);
-    host.toggleAttribute('data-dark', dark);
-    shadow.querySelector('.theme')!.textContent = dark ? '☀ Light mode' : '☾ Dark mode';
-    shadow.querySelector('.theme')!.setAttribute('aria-pressed', String(dark));
+  const themes: { id: VtopTheme; label: string; dark: boolean }[] = [
+    { id: 'light', label: 'Light', dark: false }, { id: 'dark', label: 'Dark', dark: true },
+    { id: 'oled', label: 'OLED', dark: true }, { id: 'blue', label: 'Blue', dark: true }
+  ];
+  const validTheme = (value: unknown): value is VtopTheme => themes.some(item => item.id === value);
+  function setTheme(value: unknown) {
+    theme = validTheme(value) ? value : 'light';
+    const item = themes.find(candidate => candidate.id === theme)!;
+    document.documentElement.dataset.vtopCommandTheme = theme;
+    document.documentElement.toggleAttribute('data-vtop-command-dark', item.dark);
+    host.dataset.theme = theme; host.toggleAttribute('data-dark', item.dark);
+    shadow.querySelector<HTMLSelectElement>('.theme')!.value = theme;
   }
-  function toggleTheme() {
-    setTheme(!dark);
-    try { chrome.storage.local.set({ darkMode: dark })?.catch(() => {}); } catch { /* Extension reloaded. */ }
+  function saveTheme(value: unknown) {
+    setTheme(value);
+    try { chrome.storage.local.set({ theme, darkMode: themes.find(item => item.id === theme)!.dark })?.catch(() => {}); } catch { /* Extension reloaded. */ }
   }
   function rememberCommand(id: string) {
     usage = recordUsage(usage, id);
@@ -337,12 +343,12 @@
       if (dialog.open && !semesterView && selected === 0) render();
     }).catch(() => {});
   } catch { /* Ranking works in memory if storage is unavailable. */ }
-  setTheme(false);
+  setTheme('light');
   try {
     // Filter memory was removed; drop what it had saved.
     chrome.storage.local.remove?.(['pageFilters', 'rememberFilters'])?.catch?.(() => {});
-    chrome.storage.local.get<StoredSettings>(['darkMode', 'defaultSemester', 'knownSemesters', 'commandShortcut']).then(settings => {
-      setTheme(settings.darkMode === true); setSemesterPreference(settings.defaultSemester);
+    chrome.storage.local.get<StoredSettings>(['theme', 'darkMode', 'defaultSemester', 'knownSemesters', 'commandShortcut']).then(settings => {
+      setTheme(validTheme(settings.theme) ? settings.theme : settings.darkMode === true ? 'blue' : 'light'); setSemesterPreference(settings.defaultSemester);
       if (settings.commandShortcut && shortcut.set(settings.commandShortcut)) updateShortcutDisplay();
       if (Array.isArray(settings.knownSemesters?.list)) {
         rememberSemesters(settings.knownSemesters.list, { persist: false });
@@ -357,7 +363,8 @@
         usage = sanitizeUsage(changes[USAGE_KEY].newValue); usageRevision++;
         // Apply on the next render, without moving a row underneath the pointer.
       }
-      if (area === 'local' && changes.darkMode) setTheme(changes.darkMode.newValue === true);
+      if (area === 'local' && changes.theme) setTheme(changes.theme.newValue);
+      else if (area === 'local' && changes.darkMode) setTheme(changes.darkMode.newValue === true ? 'blue' : 'light');
       if (area === 'local' && Array.isArray((changes.knownSemesters?.newValue as StoredSemesters | undefined)?.list)) {
         rememberSemesters((changes.knownSemesters.newValue as Required<StoredSemesters>).list, { persist: false });
         semestersUpdated = Math.max(semestersUpdated, Number((changes.knownSemesters.newValue as StoredSemesters).updated) || 0);
@@ -388,7 +395,7 @@
       } },
       { id: 'vtop:semester', label: 'Choose default semester', category: defaultSemester?.label || 'Preferences', keywords: 'semester term default automatic', action: showSemesterSettings },
       { id: 'vtop:shortcut', label: 'Change keyboard shortcut', category: 'Preferences', keywords: 'hotkey keybinding command', action: showShortcutSettings },
-      { id: 'vtop:theme', label: 'Toggle dark mode', category: 'Appearance', keywords: 'light theme night', action: toggleTheme }];
+      { id: 'vtop:theme', label: 'Choose theme', category: 'Appearance', keywords: 'light dark black blue oled theme', action: () => shadow.querySelector<HTMLSelectElement>('.theme')!.focus() }];
   }
   function updateSelection(scroll = true) {
     [...list.children].forEach((row, index) => row.setAttribute('aria-selected', String(index === selected)));
@@ -460,7 +467,7 @@
   shadow.querySelector('.shortcut-button')!.addEventListener('click', showShortcutSettings);
   host.addEventListener('vtop-choose-semester', showSemesterSettings);
   shadow.querySelector('.close')!.addEventListener('click', close);
-  shadow.querySelector('.theme')!.addEventListener('click', toggleTheme);
+  shadow.querySelector<HTMLSelectElement>('.theme')!.addEventListener('change', event => saveTheme((event.target as HTMLSelectElement).value));
   shadow.querySelector('.semester-button')!.addEventListener('click', showSemesterSettings);
   semesterPicker.addEventListener('change', () => { shadow.querySelector<HTMLButtonElement>('.save-semester')!.disabled = semesterPicker.value === ''; });
   shadow.querySelector('.save-semester')!.addEventListener('click', () => {

@@ -185,7 +185,7 @@ test('opening/searching does not record use, vanished routes are ignored, and bu
   assert.equal(bg.writes.length, 0);
   p.query('dark'); p.key('Enter', {}, p.input); await tick();
   assert.equal(bg.store[USAGE_KEY]['vtop:theme'].weight, 1);
-  p.open(); assert.equal(p.top(), 'Toggle dark mode');
+  p.open(); assert.equal(p.top(), 'Choose theme');
   p.query('shortcut'); p.key('Enter', {}, p.input); await tick();
   assert.equal(bg.store[USAGE_KEY]['vtop:shortcut'].weight, 1);
   p.close();

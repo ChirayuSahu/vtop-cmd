@@ -76,12 +76,14 @@ test('re-resolves native elements after AJAX replacement and discovers newly ins
   key('k',{ctrlKey:true}); query('new page'); assert.match(shadow.querySelector('[role=option]').textContent,/New Page/);
   dom.window.close();
 });
-test('empty results, signed-out state, and theme restore/toggle without persisting account data', async () => {
+test('empty results, signed-out state, and theme dropdown without persisting account data', async () => {
   const {dom,w,shadow,key,query,writes}=setup({signedIn:false,savedDark:true});
   await Promise.resolve(); await Promise.resolve();
   assert.ok(w.document.documentElement.hasAttribute('data-vtop-command-dark'));
   key('k',{ctrlKey:true}); assert.match(shadow.textContent,/Sign in to VTOP/);
-  shadow.querySelector('.theme').click(); assert.ok(!w.document.documentElement.hasAttribute('data-vtop-command-dark')); assert.deepEqual(writes.map(v=>Object.keys(v)),[['darkMode']]);
+  const theme=shadow.querySelector('.theme'); assert.equal(theme.value,'blue'); theme.value='oled'; theme.dispatchEvent(new w.Event('change'));
+  assert.equal(w.document.documentElement.dataset.vtopCommandTheme,'oled'); assert.ok(w.document.documentElement.hasAttribute('data-vtop-command-dark')); assert.deepEqual(writes.map(v=>Object.keys(v)),[['theme','darkMode']]);
+  theme.value='light'; theme.dispatchEvent(new w.Event('change')); assert.equal(w.document.documentElement.dataset.vtopCommandTheme,'light'); assert.ok(!w.document.documentElement.hasAttribute('data-vtop-command-dark'));
   query('zzzzzz'); assert.match(shadow.querySelector('.results').textContent,/No pages found/); key('Enter',{},shadow.querySelector('.search input'));
   dom.window.close();
 });

@@ -131,8 +131,8 @@ declare var VtopFormPresets: VtopFormPresetsApi | undefined;
   const host = document.createElement('div'); host.id = 'vtop-form-presets';
   const shadow = host.attachShadow({mode:'open'});
   const theme = `
-    :host{all:initial;color-scheme:light;${tokens.light};font:${font};color:var(--text)}
-    :host([data-dark]){color-scheme:dark;${tokens.dark}}
+    :host{all:initial;color-scheme:light;${tokens.themes.light};font:${font};color:var(--text)}
+    :host([data-theme="dark"]){color-scheme:dark;${tokens.themes.dark}}:host([data-theme="oled"]){color-scheme:dark;${tokens.themes.oled}}:host([data-theme="blue"]){color-scheme:dark;${tokens.themes.blue}}
     *{box-sizing:border-box}[hidden]{display:none!important}button,input,select,textarea{font:inherit}button{cursor:pointer}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
   `;
   globalThis.VtopBrand.setMarkup(shadow, `<style>${theme}${globalThis.VtopCombobox?.css || ''}
@@ -368,9 +368,10 @@ declare var VtopFormPresets: VtopFormPresetsApi | undefined;
   document.addEventListener('keydown',event=>{if(dialog.open && shortcut.matches(event)) dialog.close();});
   function syncTheme() {
     const dark = document.documentElement.hasAttribute('data-vtop-command-dark');
-    for (const node of [host,...bars.values(),...[...nativePickers.values()].map(record=>record.host)]) if(node.hasAttribute('data-dark') !== dark) node.toggleAttribute('data-dark',dark);
+    const theme = document.documentElement.dataset.vtopCommandTheme || (dark ? 'blue' : 'light');
+    for (const node of [host,...bars.values(),...[...nativePickers.values()].map(record=>record.host)]) { node.toggleAttribute('data-dark',dark); node.dataset.theme = theme; }
   }
-  new MutationObserver(syncTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-vtop-command-dark']});
+  new MutationObserver(syncTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-vtop-command-dark','data-vtop-command-theme']});
   function scan() {
     for (const [form,bar] of bars) if (!form.isConnected) {bar.remove();bars.delete(form);}
     for (const form of root()?.querySelectorAll('form') || []) {

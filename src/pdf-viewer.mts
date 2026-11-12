@@ -11,13 +11,14 @@ const $=<T extends Element=HTMLElement>(selector:string)=>document.querySelector
 // Firefox can report the extension URL as this frame's referrer; this viewer is only embedded on VTOP.
 const parentOrigin='https://vtop.vit.ac.in';
 const container=$('#pages'),states:PageState[]=[],nearby=new Set<PageState>(),GUTTER=48;
-// Match the command menu's palette and follow its dark-mode setting live.
-if(globalThis.VtopBrand){const style=document.createElement('style');style.textContent=`:root{color-scheme:light;${VtopBrand.tokens.light}}:root[data-dark]{color-scheme:dark;${VtopBrand.tokens.dark}}`;document.head.prepend(style);}
-function theme(dark:boolean){document.documentElement.toggleAttribute('data-dark',dark);}
-theme(new URLSearchParams(location.search).get('theme')==='dark');
+// Match the command menu's palette and follow its selected display theme live.
+const validTheme=(value:unknown):value is VtopTheme=>['light','dark','oled','blue'].includes(String(value));
+if(globalThis.VtopBrand){const style=document.createElement('style');style.textContent=`:root{color-scheme:light;${VtopBrand.tokens.themes.light}}:root[data-theme="dark"]{color-scheme:dark;${VtopBrand.tokens.themes.dark}}:root[data-theme="oled"]{color-scheme:dark;${VtopBrand.tokens.themes.oled}}:root[data-theme="blue"]{color-scheme:dark;${VtopBrand.tokens.themes.blue}}`;document.head.prepend(style);}
+function applyTheme(value:unknown){const selected=validTheme(value)?value:'light';document.documentElement.dataset.theme=selected;document.documentElement.toggleAttribute('data-dark',selected!=='light');}
+applyTheme(new URLSearchParams(location.search).get('theme'));
 try{
- chrome.storage.local.get('darkMode').then(settings=>theme(settings.darkMode===true)).catch(()=>{});
- chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.darkMode)theme(changes.darkMode.newValue===true);});
+ chrome.storage.local.get(['theme','darkMode']).then(settings=>applyTheme(settings.theme ?? (settings.darkMode===true?'blue':'light'))).catch(()=>{});
+ chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.theme)applyTheme(changes.theme.newValue);else if(area==='local'&&changes.darkMode)applyTheme(changes.darkMode.newValue===true?'blue':'light');});
 }catch{/* Tests and previews run without the extension runtime. */}
 const menuKey:MenuKey=globalThis.VtopBrand?.shortcut||{modifier:'Ctrl',matches:event=>(event.ctrlKey||event.metaKey)&&!event.altKey&&!event.shiftKey&&(event.key?.toLowerCase()==='k'||event.code==='KeyK')};
 try{

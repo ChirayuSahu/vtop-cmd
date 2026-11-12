@@ -57,6 +57,12 @@ test('external URLs and ordinary VTOP navigation retain native browser behavior'
  const {dom,w,calls,opens}=bridge();w.open('https://example.com/file.pdf');w.open('/vtop/academics/home');
  assert.equal(opens.length,2);assert.equal(calls.length,0);dom.window.close();
 });
+test('Student Login popups stay native and never open a document preview',()=>{
+ const {dom,w,calls,opens,messages}=bridge();const button=w.document.createElement('button');
+ button.textContent='VTOP Student Login';button.addEventListener('click',()=>w.open('/vtop/login'));
+ w.document.body.append(button);button.click();
+ assert.equal(opens.length,1);assert.equal(calls.length,0);assert.equal(messages.some(message=>message.kind==='loading'),false);dom.window.close();
+});
 test('PDF blob anchors are intercepted even when detached; non-PDF responses keep download behavior',async()=>{
  const a=bridge();const anchor=a.w.document.createElement('a');anchor.href=a.w.URL.createObjectURL(new a.w.Blob(['%PDF-1.4'],{type:'application/pdf'}));anchor.download='notes.pdf';anchor.click();await pause();
  assert.ok(a.messages.some(m=>m.kind==='ready'));assert.equal(a.downloads.length,0);a.dom.window.close();
@@ -70,9 +76,9 @@ test('POST download forms retain fields; non-download/file-upload forms are left
  form.action='/vtop/upload';form.submit();assert.equal(calls.at(-1).native,true);
  form.action='/vtop/download/upload';form.innerHTML='<input type="file">';form.submit();assert.equal(calls.at(-1).native,true);dom.window.close();
 });
-test('expired sessions show an error instead of downloading HTML as PDF',async()=>{
- const {dom,w,messages,downloads}=bridge({body:'<html>Sign in</html>',type:'text/html'});w.open('/vtop/download/file');await pause();
- assert.ok(messages.some(m=>m.kind==='error'));assert.equal(downloads.length,0);dom.window.close();
+test('failed preview requests fall back to VTOP\'s original download navigation',async()=>{
+ const {dom,w,messages,opens,downloads}=bridge({body:'<html>Sign in</html>',type:'text/html'});w.open('/vtop/download/file');await pause();
+ assert.ok(messages.some(m=>m.kind==='not-pdf'));assert.equal(opens.length,1);assert.equal(downloads.length,0);dom.window.close();
 });
 test('PDF resources are bundled locally and MAIN interception is scoped only to VTOP',()=>{
  const manifest=JSON.parse(fs.readFileSync(__dirname+'/../static/manifest.json'));
@@ -96,6 +102,59 @@ test('Shift-click bypasses the viewer for native javascript download helpers',()
  const {dom,w,opens,calls}=bridge();const anchor=w.document.createElement('a');anchor.href='javascript:void(0)';anchor.addEventListener('click',()=>w.open('/vtop/download/original'));w.document.body.append(anchor);
  anchor.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));
  assert.equal(opens.length,1);assert.equal(calls.length,0);dom.window.close();
+});
+test('Shift-clicking a delayed VTOP popup leaves preview interception disabled',async()=>{
+ const {dom,w,calls,opens}=bridge();const link=w.document.createElement('a');
+ // The helper has no directly downloadable href; its delayed popup is what must retain the modifier bypass.
+ link.href='javascript:void(0)';
+ link.addEventListener('click',event=>{event.preventDefault();setTimeout(()=>w.open('/vtop/download/original.pdf'),20);});w.document.body.append(link);
+ link.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));await pause();
+ assert.equal(calls.length,0);assert.equal(opens.length,1);dom.window.close();
+});
+test('Shift-clicking a document link saves it directly with a contextual name',async()=>{
+ const {dom,w,calls,downloads}=bridge({disposition:'attachment; filename="w4HdVJyD.pdf"'});const link=w.document.createElement('a');
+ link.href='/vtop/download/file';link.title='Linear Algebra Notes';w.document.body.append(link);
+ link.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));await pause();
+ assert.equal(calls.length,1);assert.deepEqual(downloads,[{href:'blob:https://vtop.vit.ac.in/1',name:'Linear Algebra Notes.pdf'}]);dom.window.close();
+});
+test('document names use the server name and add the matching file extension when missing',async()=>{
+ const named=bridge({disposition:'attachment; filename="Module 3 notes"'});named.w.open('/vtop/download/file');await pause();
+ assert.equal(named.messages.find(message=>message.kind==='ready').filename,'Module 3 notes.pdf');named.dom.window.close();
+ const linked=bridge({disposition:null});linked.w.open('/vtop/download/file');await pause();
+ assert.equal(linked.messages.find(message=>message.kind==='ready').filename,'file.pdf');linked.dom.window.close();
+});
+test('RFC 5987 and percent-encoded server filenames are decoded before download',async()=>{
+ const encoded=bridge({disposition:"attachment; filename*=UTF-8'en'%E2%82%AC%20notes.pdf"});encoded.w.open('/vtop/download/file');await pause();
+ assert.equal(encoded.messages.find(message=>message.kind==='ready').filename,'€ notes.pdf');encoded.dom.window.close();
+ const plain=bridge({disposition:'attachment; filename="Course%20notes"'});plain.w.open('/vtop/download/file');await pause();
+ assert.equal(plain.messages.find(message=>message.kind==='ready').filename,'Course notes.pdf');plain.dom.window.close();
+});
+test('opaque server names use the clicked document label instead',async()=>{
+ const {dom,w,messages}=bridge({disposition:'attachment; filename="t_wT7NP6.pdf"'});const link=w.document.createElement('a');
+ link.href='/vtop/download/file';link.title='Module 3 Lecture Notes';w.document.body.append(link);link.click();await pause();
+ assert.equal(messages.find(message=>message.kind==='ready').filename,'Module 3 Lecture Notes.pdf');dom.window.close();
+});
+test('opaque server names fall back to the filename in the original download link',async()=>{
+ const {dom,w,messages}=bridge({disposition:'attachment; filename="t_wT7NP6.pdf"'});const link=w.document.createElement('a');
+ link.href='/vtop/download/file?fileName=Lecture%201%20Notes.pdf';w.document.body.append(link);link.click();await pause();
+ assert.equal(messages.find(message=>message.kind==='ready').filename,'Lecture 1 Notes.pdf');dom.window.close();
+});
+test('preview names retain the previous document-title naming when downloads use link filenames',async()=>{
+ const {dom,w,messages}=bridge({body:'%PDF-1.4\n1 0 obj << /Title (Linear Algebra Notes) >>',disposition:'attachment; filename="t_wT7NP6.pdf"'});const link=w.document.createElement('a');
+ link.href='/vtop/download/file?fileName=Lecture%201%20Notes.pdf';w.document.body.append(link);link.click();await pause();
+ const ready=messages.find(message=>message.kind==='ready');assert.equal(ready.filename,'Lecture 1 Notes.pdf');assert.equal(ready.previewName,'Linear Algebra Notes.pdf');dom.window.close();
+});
+test('opaque popup names use the surrounding download-row title',async()=>{
+ const {dom,w,messages}=bridge({disposition:'attachment; filename="w4HdVJyD.pdf"'});const row=w.document.createElement('tr'),cell=w.document.createElement('td'),button=w.document.createElement('button');
+ cell.textContent='Linear Algebra Unit 2 Notes';button.textContent='Download PDF';button.addEventListener('click',()=>w.open('/vtop/download/file'));row.append(cell,button);w.document.body.append(row);
+ button.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true}));await pause();
+ assert.equal(messages.find(message=>message.kind==='ready').filename,'Linear Algebra Unit 2 Notes.pdf');dom.window.close();
+});
+test('opaque PDF names use embedded title metadata or a clean fallback',async()=>{
+ const titled=bridge({body:'%PDF-1.4\n1 0 obj << /Title (Linear Algebra Notes) >>',disposition:'attachment; filename="34cXHw_P.pdf"'});titled.w.open('/vtop/download/file');await pause();
+ assert.equal(titled.messages.find(message=>message.kind==='ready').filename,'Linear Algebra Notes.pdf');titled.dom.window.close();
+ const unnamed=bridge({disposition:'attachment; filename="34cXHw_P.pdf"'});unnamed.w.open('/vtop/download/file');await pause();
+ assert.equal(unnamed.messages.find(message=>message.kind==='ready').filename,'VTOP document.pdf');unnamed.dom.window.close();
 });
 test('preview ignores forged origins and accepts PDF bytes without fetching page blob URLs',async()=>{
  const dom=new JSDOM('<!doctype html><html><body></body></html>',{runScripts:'outside-only',url:'https://vtop.vit.ac.in/vtop/content'}),w=dom.window;
@@ -133,7 +192,62 @@ test('preview Download keeps original PDF bytes and filename, and Close revokes 
  send('loading');send('ready',{bytes:samplePdf(),filename:'Lecture.pdf'});await pause();
  const shadow=w.document.querySelector('#vtop-pdf-preview').shadowRoot,download=shadow.querySelector('a');
  assert.equal(download.hidden,false);assert.equal(download.download,'Lecture.pdf');assert.equal(download.href,'blob:https://vtop.vit.ac.in/original-copy');
+ assert.equal(shadow.querySelector('h2').textContent,download.download);
  shadow.querySelector('button').click();assert.equal(download.hidden,true);assert.deepEqual(revoked,['blob:https://vtop.vit.ac.in/original-copy']);dom.window.close();
+});
+test('preview headings use their supplied display name instead of the download filename',async()=>{
+ const {dom,shadow,send}=previewWindow();send('pdf-1-1','loading');send('pdf-1-1','ready',{bytes:samplePdf(),filename:'Lecture 1 Notes.pdf',previewName:'Linear Algebra Notes.pdf'});await pause();
+ assert.equal(shadow.querySelector('h2').textContent,'Linear Algebra Notes.pdf');dom.window.close();
+});
+test('preview Download normalizes encoded names and document extensions',async()=>{
+ const {dom,shadow,send}=previewWindow();send('pdf-1-1','loading');send('pdf-1-1','ready',{bytes:samplePdf(),filename:'Course%20notes'});await pause();
+ assert.equal(shadow.querySelector('.download').download,'Course notes.pdf');dom.window.close();
+});
+test('modifier-clicking preview Download still starts a native file download',async()=>{
+ const {dom,w,shadow,send}=previewWindow();const clicks=[];
+ w.HTMLAnchorElement.prototype.click=function(){clicks.push({href:this.href,name:this.download,bypass:this.dataset.vtopPdfBypass});};
+ send('pdf-1-1','loading');send('pdf-1-1','ready',{bytes:samplePdf(),filename:'Lecture.pdf'});await pause();
+ shadow.querySelector('.download').dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));
+ assert.deepEqual(clicks,[{href:'blob:https://vtop.vit.ac.in/copy',name:'Lecture.pdf',bypass:'true'}]);dom.window.close();
+});
+test('preview Download uses the retained copy on every click after the original URL is revoked',async()=>{
+ const page=bridge(),viewer=previewWindow();
+ const original=page.w.document.createElement('a');
+ original.href=page.w.URL.createObjectURL(new page.w.Blob(['%PDF-1.4']));
+ original.download='Lecture.pdf';original.click();page.w.URL.revokeObjectURL(original.href);await pause();
+ for(const message of page.messages)viewer.send(message.id,message.kind,message);
+ const link=viewer.shadow.querySelector('.download');
+ const clicks=[];
+ link.addEventListener('click',event=>{
+  clicks.push({href:link.href,name:link.download,handled:event.defaultPrevented});
+  event.preventDefault();
+ });
+ link.click();link.click();
+ assert.deepEqual(clicks,Array(2).fill({href:'blob:https://vtop.vit.ac.in/copy',name:'Lecture.pdf',handled:false}));
+ page.dom.window.close();viewer.dom.window.close();
+});
+test('opaque Office attachments retain their type when the server sends generic binary data',async()=>{
+ for(const type of ['pptx','ppt','docx','doc']){
+  const page=bridge({body:'office document',type:'application/octet-stream',disposition:`attachment; filename="w4HdVJyD.${type}"`});
+  page.w.open('/vtop/download/file');await pause();
+  const ready=page.messages.find(message=>message.kind==='ready');
+  assert.equal(ready?.documentType,type);assert.equal(ready.filename,`VTOP document.${type}`);
+  assert.equal(page.downloads.length,0);page.dom.window.close();
+ }
+});
+test('direct download displays an error for a sign-in page or JSON error',async()=>{
+ for(const type of ['text/html','application/json']){
+  const page=bridge({body:type==='text/html'?'<html>Sign in</html>':'{"error":"expired"}',type,disposition:null});
+  const link=page.w.document.createElement('a');link.href='/vtop/download/file.pdf';page.w.document.body.append(link);
+  link.dispatchEvent(new page.w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));await pause();
+  assert.deepEqual(page.downloads,[]);
+  const viewer=previewWindow();
+  for(const message of page.messages)viewer.send(message.id,message.kind,message);
+  assert.ok(viewer.shadow.querySelector('dialog').open);
+  assert.match(viewer.shadow.querySelector('.status').textContent,/sign in again/i);
+  assert.ok(viewer.shadow.querySelector('.download').hidden);
+  viewer.dom.window.close();page.dom.window.close();
+ }
 });
 test('real Curriculum button submits curriculDown form to the viewer once with authenticated POST fields',async()=>{
  const {dom,w,calls,messages}=bridge();const form=w.document.createElement('form');form.id='curriculumDownloadForm';form.method='post';form.action='academics/curriculDown/';
@@ -167,6 +281,17 @@ function navigate(w,url,extra={}){
  Object.defineProperties(event,{destination:{value:{url:new URL(url,w.location.href).href}},navigationType:{value:'push'},hashChange:{value:false},downloadRequest:{value:null},formData:{value:null},...Object.fromEntries(Object.entries(extra).map(([key,value])=>[key,{value}]))});
  w.navigation.dispatchEvent(event);return event;
 }
+test('Navigation API leaves downloads from the preview link alone',()=>{
+ const {dom,w,calls}=bridge({navigation:true});
+ const host=w.document.createElement('div');w.document.body.append(host);
+ const shadow=host.attachShadow({mode:'open'}),link=w.document.createElement('a');
+ link.href='blob:https://vtop.vit.ac.in/preview-copy';link.download='Lecture.pdf';
+ link.dataset.vtopPdfBypass='true';shadow.append(link);
+ link.addEventListener('click',event=>event.preventDefault());
+ link.dispatchEvent(new w.MouseEvent('click',{bubbles:true,composed:true,cancelable:true}));
+ assert.equal(navigate(w,link.href,{downloadRequest:link.download}).defaultPrevented,false);
+ assert.equal(calls.length,0);dom.window.close();
+});
 test('Navigation API catches location-style downloads and POST navigations, leaving ordinary pages native',async()=>{
  const {dom,w,calls,messages}=bridge({navigation:true});
  const download=navigate(w,'/vtop/downloadQuestionPaper?id=7');await pause();
@@ -238,7 +363,7 @@ test('preview shares the command menu palette and follows the saved dark mode, p
  assert.equal(host.hasAttribute('data-dark'),true);assert.match(shadow.querySelector('style').textContent,/--surface:#171d29/);
  assert.match(shadow.querySelector('.brand').textContent,/VTOP \/ PREVIEW/);assert.equal(shadow.querySelector('.close').textContent,'Esc');
  send('pdf-1-1','loading');send('pdf-1-1','ready',{bytes:samplePdf()});await pause();
- assert.match(shadow.querySelector('iframe').src,/\?theme=dark&\btype=pdf#/);
+ assert.match(shadow.querySelector('iframe').src,/\?theme=blue&\btype=pdf#/);
  listeners.forEach(listener=>listener({darkMode:{newValue:false}},'local'));assert.equal(host.hasAttribute('data-dark'),false);dom.window.close();
 });
 test('PPTX and legacy PPT previews route bytes to their presentation viewers',async()=>{
@@ -274,6 +399,15 @@ test('Escape and Cmd/Ctrl+K forwarded from the viewer close the preview and reop
  fromViewer(await open('pdf-1-1'),'Escape');assert.equal(dialog.open,false);assert.deepEqual(keys,[]);
  fromViewer(await open('pdf-2-2'),'k');assert.equal(dialog.open,false);assert.deepEqual(keys,['k']);dom.window.close();
 });
+test('Word blob popups still preview after VTOP revokes the URL',async()=>{
+ for(const [ext,type] of [['doc','application/msword'],['docx','application/vnd.openxmlformats-officedocument.wordprocessingml.document']]){
+  const {dom,w,messages,opens}=bridge();
+  const url=w.URL.createObjectURL(new w.Blob(['Word bytes'],{type}));
+  w.open(url);w.URL.revokeObjectURL(url);await pause();
+  assert.equal(messages.find(item=>item.kind==='ready')?.documentType,ext);
+  assert.equal(opens.length,0);dom.window.close();
+ }
+});
 test('VTOP downloadFileWithProgress: untyped blob revoked right after click still opens the viewer',async()=>{
  const {dom,w,messages,downloads}=bridge();const revoke=w.URL.revokeObjectURL;let revoked=0;w.URL.revokeObjectURL=url=>{revoked++;revoke(url);};
  const blob=new w.Blob(['%PDF-1.4 lecture']);const link=w.document.createElement('a');link.href=w.URL.createObjectURL(blob);link.download='Module 3';
@@ -282,9 +416,12 @@ test('VTOP downloadFileWithProgress: untyped blob revoked right after click stil
  const other=bridge();const sheet=other.w.document.createElement('a');sheet.href=other.w.URL.createObjectURL(new other.w.Blob(['PK spreadsheet']));sheet.download='marks.xlsx';
  other.w.document.body.append(sheet);sheet.click();await pause();assert.equal(other.downloads.length,1);assert.equal(other.downloads[0].name,'marks.xlsx');other.dom.window.close();
 });
-test('vtopDownload-style popups with a CSRF token open the viewer; HTML responses fall back to the popup',async()=>{
- const a=bridge();a.w.open('examinations/getQuestionPaper/12?authorizedID=X&_csrf=test');await pause();
+test('download-labelled controls can preview opaque VTOP popups; other CSRF popups stay native',async()=>{
+ const a=bridge();const download=a.w.document.createElement('button');download.textContent='Download question paper';
+ download.addEventListener('click',()=>a.w.open('examinations/getQuestionPaper/12?authorizedID=X&_csrf=test'));a.w.document.body.append(download);download.click();await pause();
  assert.equal(a.opens.length,0);assert.ok(a.messages.some(m=>m.kind==='ready'));a.dom.window.close();
- const b=bridge({body:'<html>page</html>',type:'text/html'});b.w.open('examinations/getQuestionPaper/12?authorizedID=X&_csrf=test');await pause();
+ const b=bridge({body:'<html>page</html>',type:'text/html'});const fallback=b.w.document.createElement('button');fallback.textContent='Download question paper';
+ fallback.addEventListener('click',()=>b.w.open('examinations/getQuestionPaper/12?authorizedID=X&_csrf=test'));b.w.document.body.append(fallback);fallback.click();await pause();
  assert.equal(b.opens.length,1);assert.ok(b.messages.some(m=>m.kind==='not-pdf'));b.dom.window.close();
+ const c=bridge();c.w.open('vtop/login?_csrf=test');assert.equal(c.opens.length,1);assert.equal(c.calls.length,0);c.dom.window.close();
 });
