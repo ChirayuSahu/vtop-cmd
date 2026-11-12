@@ -79,6 +79,20 @@
     try { if (encoded || /%[0-9a-f]{2}/i.test(name)) name = decodeURIComponent(name); } catch {}
     return name.replace(/[\\/\x00-\x1f]/g, '_').trim().slice(0,180) || fallback;
   }
+  function linkFilename(value: string) {
+    try {
+      const url = new URL(value,document.baseURI);
+      const candidates = [
+        ...[...url.searchParams].filter(([key]) => /^(?:file|document|doc)?name$|^(?:file|document|doc)?title$/i.test(key.replace(/[_-]/g,''))).map(([,name]) => ({name,explicit:true})),
+        {name:decodeURIComponent(url.pathname.split('/').pop() || ''),explicit:false}
+      ];
+      return candidates.find(({name:value,explicit}) => {
+        const name = filename(null,value);
+        const stem = name.replace(/\.[^.]+$/,'');
+        return !!stem && !genericName(stem) && (explicit || !opaqueFilename(name)) && !/^\d+$/.test(stem);
+      })?.name;
+    } catch { return undefined; }
+  }
   function fileNameWithExtension(name: string, type: 'pdf' | 'pptx' | 'ppt' | 'docx' | 'doc') {
     const extension = `.${type}`;
     return new RegExp(`\\${extension}$`, 'i').test(name) ? name : `${name.replace(/\.[a-z0-9]{1,5}$/i, '') || 'document'}${extension}`;
@@ -119,8 +133,9 @@
       try { pathName = decodeURIComponent(new URL(url, document.baseURI).pathname.split('/').pop()!); } catch {}
       let name = filename(contentDisposition, suggestedName || pathName || (isPdf ? 'document' : 'download'));
       if (opaqueFilename(name)) {
+        const linkedName = suggestedName || linkFilename(url);
         const title = isPdf ? await pdfTitle(blob) : undefined;
-        name = title && !genericName(title) ? title : suggestedName || 'VTOP document';
+        name = linkedName || (title && !genericName(title) ? title : 'VTOP document');
       }
       const isPptx = /application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation/i.test(contentType) || /\.pptx$/i.test(name);
       const isLegacyPpt = /application\/vnd\.ms-powerpoint/i.test(contentType) || /\.ppt$/i.test(name);
