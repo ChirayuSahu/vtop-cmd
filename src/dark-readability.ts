@@ -108,11 +108,11 @@
   new MutationObserver(records => {
     let changed = false;
     for (const record of records) {
-      if (record.attributeName === 'data-vtop-command-dark' || opensArea(record)) { full = changed = true; continue; }
+      if (record.attributeName === 'data-vtop-command-dark' || record.attributeName === 'data-vtop-command-theme' || opensArea(record)) { full = changed = true; continue; }
       if (!within(record.target)) continue;
       dirty.add((record.target.nodeType === 1 ? record.target : record.target.parentElement) as Element); changed = true;
     }
     if (changed) schedule();
-  }).observe(doc.documentElement,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style','color','hidden','disabled','aria-disabled','data-vtop-command-dark']});
+  }).observe(doc.documentElement,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:['class','style','color','hidden','disabled','aria-disabled','data-vtop-command-dark','data-vtop-command-theme']});
   schedule();
 })(globalThis);

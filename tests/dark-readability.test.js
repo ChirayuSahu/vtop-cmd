@@ -42,6 +42,7 @@ test('dark-mode repair follows nested AJAX content and restores native colors in
     if (w.document.documentElement.hasAttribute('data-vtop-command-dark')) {
       return new Proxy(css,{get(target,key){
         if (key==='color' && element.hasAttribute('data-vtop-readable')) return `rgb(${api.palette[element.getAttribute('data-vtop-readable')].join(',')})`;
+        if (key==='backgroundColor' && element===w.document.body && w.document.documentElement.dataset.vtopCommandTheme==='oled') return 'rgb(0,0,0)';
         if (key==='backgroundColor' && element.hasAttribute('data-vtop-dark-surface')) return 'rgb(24,33,48)';
         return Reflect.get(target,key);
       }});
@@ -63,6 +64,11 @@ test('dark-mode repair follows nested AJAX content and restores native colors in
   const detail = w.document.createElement('div'); detail.innerHTML='<span style="color:red">Absent</span>';
   w.document.querySelector('main').append(detail); await pause();
   assert.equal(detail.firstChild.getAttribute('data-vtop-readable'),'red');
+  const gray=w.document.createElement('span');gray.style.color='rgb(120,120,120)';gray.textContent='Room';
+  w.document.querySelector('main').append(gray);await pause();
+  assert.ok(gray.hasAttribute('data-vtop-readable'));
+  w.document.documentElement.dataset.vtopCommandTheme='oled';await pause();
+  assert.equal(gray.hasAttribute('data-vtop-readable'),false,'OLED background already provides enough contrast');
   status.style.color='rgb(224,230,240)'; await pause();
   assert.equal(status.hasAttribute('data-vtop-readable'),false);
   w.document.documentElement.removeAttribute('data-vtop-command-dark'); await pause();

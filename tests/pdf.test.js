@@ -399,6 +399,15 @@ test('Escape and Cmd/Ctrl+K forwarded from the viewer close the preview and reop
  fromViewer(await open('pdf-1-1'),'Escape');assert.equal(dialog.open,false);assert.deepEqual(keys,[]);
  fromViewer(await open('pdf-2-2'),'k');assert.equal(dialog.open,false);assert.deepEqual(keys,['k']);dom.window.close();
 });
+test('Word blob popups still preview after VTOP revokes the URL',async()=>{
+ for(const [ext,type] of [['doc','application/msword'],['docx','application/vnd.openxmlformats-officedocument.wordprocessingml.document']]){
+  const {dom,w,messages,opens}=bridge();
+  const url=w.URL.createObjectURL(new w.Blob(['Word bytes'],{type}));
+  w.open(url);w.URL.revokeObjectURL(url);await pause();
+  assert.equal(messages.find(item=>item.kind==='ready')?.documentType,ext);
+  assert.equal(opens.length,0);dom.window.close();
+ }
+});
 test('VTOP downloadFileWithProgress: untyped blob revoked right after click still opens the viewer',async()=>{
  const {dom,w,messages,downloads}=bridge();const revoke=w.URL.revokeObjectURL;let revoked=0;w.URL.revokeObjectURL=url=>{revoked++;revoke(url);};
  const blob=new w.Blob(['%PDF-1.4 lecture']);const link=w.document.createElement('a');link.href=w.URL.createObjectURL(blob);link.download='Module 3';

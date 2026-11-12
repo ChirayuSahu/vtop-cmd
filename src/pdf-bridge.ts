@@ -22,7 +22,7 @@
     const url = createURL(blob);
     // Untyped blobs are common for AJAX downloads; preview() sniffs the bytes before showing them.
     // VTOP's downloadFileWithProgress revokes right after click(), so keep the Blob itself for preview().
-    if (blob instanceof Blob && /^$|application\/(?:pdf|octet-stream|vnd\.ms-powerpoint|vnd\.openxmlformats-officedocument\.presentationml\.presentation)/i.test(blob.type)) pdfBlobs.set(url,blob);
+    if (blob instanceof Blob && /^$|application\/(?:pdf|octet-stream|msword|vnd\.ms-powerpoint|vnd\.openxmlformats-officedocument\.(?:presentationml\.presentation|wordprocessingml\.document))/i.test(blob.type)) pdfBlobs.set(url,blob);
     return url;
   };
   URL.revokeObjectURL = function (url) { pdfBlobs.delete(url); return revokeURL(url); };
