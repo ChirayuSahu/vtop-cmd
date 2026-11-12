@@ -98,7 +98,9 @@ test('Shift-click bypasses the viewer for native javascript download helpers',()
  assert.equal(opens.length,1);assert.equal(calls.length,0);dom.window.close();
 });
 test('Shift-clicking a delayed VTOP popup leaves preview interception disabled',async()=>{
- const {dom,w,calls,opens}=bridge();const link=w.document.createElement('a');link.href='/vtop/download/original.pdf';
+ const {dom,w,calls,opens}=bridge();const link=w.document.createElement('a');
+ // The helper has no directly downloadable href; its delayed popup is what must retain the modifier bypass.
+ link.href='javascript:void(0)';
  link.addEventListener('click',event=>{event.preventDefault();setTimeout(()=>w.open('/vtop/download/original.pdf'),20);});w.document.body.append(link);
  link.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));await pause();
  assert.equal(calls.length,0);assert.equal(opens.length,1);dom.window.close();
@@ -191,7 +193,8 @@ test('preview Download replays the original native request when available',async
  const {dom,w,shadow,send}=previewWindow(),requests=[];w.postMessage=(data,origin)=>requests.push({data,origin});
  send('pdf-1-1','loading');send('pdf-1-1','ready',{bytes:samplePdf(),filename:'Lecture.pdf',nativeDownload:true});await pause();
  shadow.querySelector('.download').dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true}));
- assert.deepEqual(requests,[{data:{source:'vtop-command-pdf-download',id:'pdf-1-1'},origin:'https://vtop.vit.ac.in'}]);dom.window.close();
+ // postMessage payloads originate in JSDOM's window realm, so compare their plain serialized value.
+ assert.deepEqual(JSON.parse(JSON.stringify(requests)),[{data:{source:'vtop-command-pdf-download',id:'pdf-1-1'},origin:'https://vtop.vit.ac.in'}]);dom.window.close();
 });
 test('real Curriculum button submits curriculDown form to the viewer once with authenticated POST fields',async()=>{
  const {dom,w,calls,messages}=bridge();const form=w.document.createElement('form');form.id='curriculumDownloadForm';form.method='post';form.action='academics/curriculDown/';
