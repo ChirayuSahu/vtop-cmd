@@ -139,6 +139,11 @@ test('opaque server names fall back to the filename in the original download lin
  link.href='/vtop/download/file?fileName=Lecture%201%20Notes.pdf';w.document.body.append(link);link.click();await pause();
  assert.equal(messages.find(message=>message.kind==='ready').filename,'Lecture 1 Notes.pdf');dom.window.close();
 });
+test('preview names retain the previous document-title naming when downloads use link filenames',async()=>{
+ const {dom,w,messages}=bridge({body:'%PDF-1.4\n1 0 obj << /Title (Linear Algebra Notes) >>',disposition:'attachment; filename="t_wT7NP6.pdf"'});const link=w.document.createElement('a');
+ link.href='/vtop/download/file?fileName=Lecture%201%20Notes.pdf';w.document.body.append(link);link.click();await pause();
+ const ready=messages.find(message=>message.kind==='ready');assert.equal(ready.filename,'Lecture 1 Notes.pdf');assert.equal(ready.previewName,'Linear Algebra Notes.pdf');dom.window.close();
+});
 test('opaque popup names use the surrounding download-row title',async()=>{
  const {dom,w,messages}=bridge({disposition:'attachment; filename="w4HdVJyD.pdf"'});const row=w.document.createElement('tr'),cell=w.document.createElement('td'),button=w.document.createElement('button');
  cell.textContent='Linear Algebra Unit 2 Notes';button.textContent='Download PDF';button.addEventListener('click',()=>w.open('/vtop/download/file'));row.append(cell,button);w.document.body.append(row);
@@ -189,6 +194,10 @@ test('preview Download keeps original PDF bytes and filename, and Close revokes 
  assert.equal(download.hidden,false);assert.equal(download.download,'Lecture.pdf');assert.equal(download.href,'blob:https://vtop.vit.ac.in/original-copy');
  assert.equal(shadow.querySelector('h2').textContent,download.download);
  shadow.querySelector('button').click();assert.equal(download.hidden,true);assert.deepEqual(revoked,['blob:https://vtop.vit.ac.in/original-copy']);dom.window.close();
+});
+test('preview headings use their supplied display name instead of the download filename',async()=>{
+ const {dom,shadow,send}=previewWindow();send('pdf-1-1','loading');send('pdf-1-1','ready',{bytes:samplePdf(),filename:'Lecture 1 Notes.pdf',previewName:'Linear Algebra Notes.pdf'});await pause();
+ assert.equal(shadow.querySelector('h2').textContent,'Linear Algebra Notes.pdf');dom.window.close();
 });
 test('preview Download normalizes encoded names and document extensions',async()=>{
  const {dom,shadow,send}=previewWindow();send('pdf-1-1','loading');send('pdf-1-1','ready',{bytes:samplePdf(),filename:'Course%20notes'});await pause();

@@ -7,7 +7,7 @@
   // Viewer frame → preview: lifecycle notices and forwarded keys, tagged with the frame's nonce.
   interface ViewerMessage { type?: 'viewer-ready'|'viewer-received'|'viewer-loaded'|'viewer-error'|'viewer-key'; nonce?: string; key?: string; code?: string; metaKey?: boolean; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }
   // pdf-bridge → preview on this window; `id` and `bytes` are checked before use.
-  interface BridgeMessage { source?: string; id?: unknown; kind?: 'loading'|'not-pdf'|'error'|'ready'; bytes?: unknown; filename?: unknown; documentType?: string; nativeDownload?: unknown }
+  interface BridgeMessage { source?: string; id?: unknown; kind?: 'loading'|'not-pdf'|'error'|'ready'; bytes?: unknown; filename?: unknown; previewName?: unknown; documentType?: string; nativeDownload?: unknown }
   // Either kind may arrive on the one listener, so every field is optional until checked.
   type IncomingMessage = Partial<ViewerMessage & BridgeMessage> | null | undefined;
   // Same surface, header and button language as the command menu (content.js).
@@ -112,7 +112,7 @@
       const mime=documentType==='pptx'?'application/vnd.openxmlformats-officedocument.presentationml.presentation':documentType==='ppt'||documentType==='unsupported'?'application/vnd.ms-powerpoint':documentType==='docx'?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':documentType==='doc'?'application/msword':'application/pdf';
       bytes=data;blobURL=URL.createObjectURL(new Blob([data],{type:mime}));
       download.href=blobURL;download.download=filename;download.hidden=false;
-      shadow.querySelector('h2')!.textContent=filename;
+      shadow.querySelector('h2')!.textContent=String(message.previewName||filename).replace(/[\\/\x00-\x1f]/g,'_').slice(0,180);
       if(documentType==='unsupported'){status.textContent='This file type cannot be previewed here. Use Download to open it in a compatible app.';return;}
       status.textContent='';mount(documentType);
     }catch{if(id===activeId)status.textContent='Unable to open this document. Retry the link, or Shift-click it to use the original download.';}

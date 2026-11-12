@@ -132,20 +132,22 @@
       let pathName = '';
       try { pathName = decodeURIComponent(new URL(url, document.baseURI).pathname.split('/').pop()!); } catch {}
       let name = filename(contentDisposition, suggestedName || pathName || (isPdf ? 'document' : 'download'));
+      let previewName = name;
       if (opaqueFilename(name)) {
         const linkedName = suggestedName || linkFilename(url);
         const title = isPdf ? await pdfTitle(blob) : undefined;
-        name = linkedName || (title && !genericName(title) ? title : 'VTOP document');
+        previewName = title && !genericName(title) ? title : suggestedName || 'VTOP document';
+        name = linkedName || previewName;
       }
       const isPptx = /application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation/i.test(contentType) || /\.pptx$/i.test(name);
       const isLegacyPpt = /application\/vnd\.ms-powerpoint/i.test(contentType) || /\.ppt$/i.test(name);
       const isDocx = /application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document/i.test(contentType) || /\.docx$/i.test(name);
       const isLegacyDoc = /application\/msword/i.test(contentType) || /\.doc$/i.test(name);
-      if (isPdf) name = fileNameWithExtension(name, 'pdf');
-      else if (isPptx) name = fileNameWithExtension(name, 'pptx');
-      else if (isLegacyPpt) name = fileNameWithExtension(name, 'ppt');
-      else if (isDocx) name = fileNameWithExtension(name, 'docx');
-      else if (isLegacyDoc) name = fileNameWithExtension(name, 'doc');
+      if (isPdf) { name = fileNameWithExtension(name, 'pdf'); previewName = fileNameWithExtension(previewName, 'pdf'); }
+      else if (isPptx) { name = fileNameWithExtension(name, 'pptx'); previewName = fileNameWithExtension(previewName, 'pptx'); }
+      else if (isLegacyPpt) { name = fileNameWithExtension(name, 'ppt'); previewName = fileNameWithExtension(previewName, 'ppt'); }
+      else if (isDocx) { name = fileNameWithExtension(name, 'docx'); previewName = fileNameWithExtension(previewName, 'docx'); }
+      else if (isLegacyDoc) { name = fileNameWithExtension(name, 'doc'); previewName = fileNameWithExtension(previewName, 'doc'); }
       if (saveOnly) { download(blob,name); return; }
       if (!isPdf) {
         if (fallback && /text\/html/i.test(contentType)) { emit('not-pdf',id); fallback(); return; }
@@ -153,14 +155,14 @@
         if (isPptx || isLegacyPpt || isDocx || isLegacyDoc) {
           const bytes = await blob.arrayBuffer();
           const documentType = isPptx ? 'pptx' : isLegacyPpt ? 'ppt' : isDocx ? 'docx' : 'doc';
-          emit('ready',id,{bytes,filename:name,documentType,nativeDownload:!!fallback});
+          emit('ready',id,{bytes,filename:name,previewName,documentType,nativeDownload:!!fallback});
           return;
         }
         download(blob,name); emit('not-pdf',id); return;
       }
       // Send bytes directly; Firefox content scripts cannot reliably fetch page-owned blob URLs.
       const bytes = await blob.arrayBuffer();
-      emit('ready',id,{bytes,filename:name,documentType:'pdf',nativeDownload:!!fallback});
+      emit('ready',id,{bytes,filename:name,previewName,documentType:'pdf',nativeDownload:!!fallback});
     } catch (error) {
       if (fallback) { nativeDownloads.delete(id);emit('not-pdf',id); fallback(); return; }
       emit('error',id,{message:(error as Error).message || 'Unable to preview this document.'});
