@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "VTOP Command",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Unofficial helper for VIT's VTOP: Ctrl+K / Cmd+K command menu, dark mode, attendance and marks totals, a CGPA calculator and a document viewer.",
   "permissions": [
     "storage"

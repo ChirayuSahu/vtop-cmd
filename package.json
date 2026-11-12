@@ -1,6 +1,6 @@
 {
   "name": "vtop-command-menu",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "private": true,
   "license": "MIT",
   "description": "A local, DOM-driven command menu for VTOP",
