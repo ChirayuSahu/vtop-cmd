@@ -97,6 +97,47 @@ test('Shift-click bypasses the viewer for native javascript download helpers',()
  anchor.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));
  assert.equal(opens.length,1);assert.equal(calls.length,0);dom.window.close();
 });
+test('Shift-clicking a delayed VTOP popup leaves preview interception disabled',async()=>{
+ const {dom,w,calls,opens}=bridge();const link=w.document.createElement('a');link.href='/vtop/download/original.pdf';
+ link.addEventListener('click',event=>{event.preventDefault();setTimeout(()=>w.open('/vtop/download/original.pdf'),20);});w.document.body.append(link);
+ link.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));await pause();
+ assert.equal(calls.length,0);assert.equal(opens.length,1);dom.window.close();
+});
+test('Shift-clicking a document link saves it directly with a contextual name',async()=>{
+ const {dom,w,calls,downloads}=bridge({disposition:'attachment; filename="w4HdVJyD.pdf"'});const link=w.document.createElement('a');
+ link.href='/vtop/download/file';link.title='Linear Algebra Notes';w.document.body.append(link);
+ link.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));await pause();
+ assert.equal(calls.length,1);assert.deepEqual(downloads,[{href:'blob:https://vtop.vit.ac.in/1',name:'Linear Algebra Notes.pdf'}]);dom.window.close();
+});
+test('document names use the server name and add the matching file extension when missing',async()=>{
+ const named=bridge({disposition:'attachment; filename="Module 3 notes"'});named.w.open('/vtop/download/file');await pause();
+ assert.equal(named.messages.find(message=>message.kind==='ready').filename,'Module 3 notes.pdf');named.dom.window.close();
+ const linked=bridge({disposition:null});linked.w.open('/vtop/download/file');await pause();
+ assert.equal(linked.messages.find(message=>message.kind==='ready').filename,'file.pdf');linked.dom.window.close();
+});
+test('RFC 5987 and percent-encoded server filenames are decoded before download',async()=>{
+ const encoded=bridge({disposition:"attachment; filename*=UTF-8'en'%E2%82%AC%20notes.pdf"});encoded.w.open('/vtop/download/file');await pause();
+ assert.equal(encoded.messages.find(message=>message.kind==='ready').filename,'€ notes.pdf');encoded.dom.window.close();
+ const plain=bridge({disposition:'attachment; filename="Course%20notes"'});plain.w.open('/vtop/download/file');await pause();
+ assert.equal(plain.messages.find(message=>message.kind==='ready').filename,'Course notes.pdf');plain.dom.window.close();
+});
+test('opaque server names use the clicked document label instead',async()=>{
+ const {dom,w,messages}=bridge({disposition:'attachment; filename="t_wT7NP6.pdf"'});const link=w.document.createElement('a');
+ link.href='/vtop/download/file';link.title='Module 3 Lecture Notes';w.document.body.append(link);link.click();await pause();
+ assert.equal(messages.find(message=>message.kind==='ready').filename,'Module 3 Lecture Notes.pdf');dom.window.close();
+});
+test('opaque popup names use the surrounding download-row title',async()=>{
+ const {dom,w,messages}=bridge({disposition:'attachment; filename="w4HdVJyD.pdf"'});const row=w.document.createElement('tr'),cell=w.document.createElement('td'),button=w.document.createElement('button');
+ cell.textContent='Linear Algebra Unit 2 Notes';button.textContent='Download PDF';button.addEventListener('click',()=>w.open('/vtop/download/file'));row.append(cell,button);w.document.body.append(row);
+ button.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true}));await pause();
+ assert.equal(messages.find(message=>message.kind==='ready').filename,'Linear Algebra Unit 2 Notes.pdf');dom.window.close();
+});
+test('opaque PDF names use embedded title metadata or a clean fallback',async()=>{
+ const titled=bridge({body:'%PDF-1.4\n1 0 obj << /Title (Linear Algebra Notes) >>',disposition:'attachment; filename="34cXHw_P.pdf"'});titled.w.open('/vtop/download/file');await pause();
+ assert.equal(titled.messages.find(message=>message.kind==='ready').filename,'Linear Algebra Notes.pdf');titled.dom.window.close();
+ const unnamed=bridge({disposition:'attachment; filename="34cXHw_P.pdf"'});unnamed.w.open('/vtop/download/file');await pause();
+ assert.equal(unnamed.messages.find(message=>message.kind==='ready').filename,'VTOP document.pdf');unnamed.dom.window.close();
+});
 test('preview ignores forged origins and accepts PDF bytes without fetching page blob URLs',async()=>{
  const dom=new JSDOM('<!doctype html><html><body></body></html>',{runScripts:'outside-only',url:'https://vtop.vit.ac.in/vtop/content'}),w=dom.window;
  w.chrome={runtime:{getURL:name=>'moz-extension://test-extension/'+name}};
@@ -134,6 +175,10 @@ test('preview Download keeps original PDF bytes and filename, and Close revokes 
  const shadow=w.document.querySelector('#vtop-pdf-preview').shadowRoot,download=shadow.querySelector('a');
  assert.equal(download.hidden,false);assert.equal(download.download,'Lecture.pdf');assert.equal(download.href,'blob:https://vtop.vit.ac.in/original-copy');
  shadow.querySelector('button').click();assert.equal(download.hidden,true);assert.deepEqual(revoked,['blob:https://vtop.vit.ac.in/original-copy']);dom.window.close();
+});
+test('preview Download normalizes encoded names and document extensions',async()=>{
+ const {dom,shadow,send}=previewWindow();send('pdf-1-1','loading');send('pdf-1-1','ready',{bytes:samplePdf(),filename:'Course%20notes'});await pause();
+ assert.equal(shadow.querySelector('.download').download,'Course notes.pdf');dom.window.close();
 });
 test('modifier-clicking preview Download still starts a native file download',async()=>{
  const {dom,w,shadow,send}=previewWindow();const clicks=[];

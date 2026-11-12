@@ -37,6 +37,13 @@
   const viewerOrigin=parsedViewerURL.protocol==='moz-extension:' ? `${parsedViewerURL.protocol}//${parsedViewerURL.host}` : parsedViewerURL.origin;
   let activeId: string|null|undefined,blobURL: string|null|undefined,previousFocus: (Element & HTMLOrSVGElement)|null|undefined,nonce: string|undefined,bytes: ArrayBuffer|null|undefined,filename: string|undefined,documentType: string|undefined,frame: HTMLIFrameElement|null|undefined,received: boolean|undefined,watchdog: ReturnType<typeof setTimeout>|undefined,theme:VtopTheme='light';
   const validTheme=(value:unknown):value is VtopTheme=>['light','dark','oled','blue'].includes(String(value));
+  function downloadName(value: unknown, type: string) {
+    let name=String(value||'document').replace(/[\\/\x00-\x1f]/g,'_').trim().slice(0,180);
+    try { if (/%[0-9a-f]{2}/i.test(name)) name=decodeURIComponent(name); } catch {}
+    const extension=type==='pptx'?'.pptx':type==='ppt'?'.ppt':type==='docx'?'.docx':type==='doc'?'.doc':type==='unsupported'?'':'.pdf';
+    if (!extension) return name || 'document';
+    return new RegExp(`\\${extension}$`,'i').test(name) ? name : `${name.replace(/\.[a-z0-9]{1,5}$/i,'')||'document'}${extension}`;
+  }
   function setTheme(value:unknown){theme=validTheme(value)?value:'light';host.dataset.theme=theme;host.toggleAttribute('data-dark',theme!=='light');}
   try {
     chrome.storage.local.get(['theme','darkMode']).then(settings=>setTheme(settings.theme ?? (settings.darkMode===true?'blue':'light'))).catch(()=>{});
@@ -98,8 +105,8 @@
       if(Object.prototype.toString.call(message.bytes)!=='[object ArrayBuffer]')throw new Error('Missing PDF data');
       const data=message.bytes as ArrayBuffer; // Checked by its toString tag just above.
       if(id!==activeId || !dialog.open)return;
-      filename=String(message.filename||'document.pdf').replace(/[\\/\x00-\x1f]/g,'_').slice(0,180);
       documentType=message.documentType || (new TextDecoder().decode(data.slice(0,5))==='%PDF-'?'pdf':'unsupported');
+      filename=downloadName(message.filename,documentType);
       const mime=documentType==='pptx'?'application/vnd.openxmlformats-officedocument.presentationml.presentation':documentType==='ppt'||documentType==='unsupported'?'application/vnd.ms-powerpoint':documentType==='docx'?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':documentType==='doc'?'application/msword':'application/pdf';
       bytes=data;blobURL=URL.createObjectURL(new Blob([data],{type:mime}));
       download.href=blobURL;download.download=filename;download.hidden=false;
