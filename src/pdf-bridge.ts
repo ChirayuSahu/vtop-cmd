@@ -18,7 +18,6 @@
   const createURL = URL.createObjectURL.bind(URL);
   const revokeURL = URL.revokeObjectURL.bind(URL);
   const pdfBlobs = new Map<string, Blob>();
-  const nativeDownloads = new Map<string, () => void>();
   URL.createObjectURL = function (blob) {
     const url = createURL(blob);
     // Untyped blobs are common for AJAX downloads; preview() sniffs the bytes before showing them.
@@ -104,12 +103,6 @@
     bypassTimer = setTimeout(() => { bypassClick = false; }, 1500);
   }
   function emit(kind: string, id: string, extra: Record<string, unknown> = {}) { window.postMessage({ source: 'vtop-command-pdf', kind, id, ...extra }, location.origin); }
-  window.addEventListener('message',event => {
-    const message=event.data;
-    if(event.source!==window||event.origin!==location.origin||message?.source!=='vtop-command-pdf-download'||typeof message.id!=='string')return;
-    const native=nativeDownloads.get(message.id);if(!native)return;
-    nativeDownloads.delete(message.id);native();
-  });
   function download(blob: Blob, name: string) {
     const url = createURL(blob), anchor = document.createElement('a');
     anchor.href = url; anchor.download = name; anchor.dataset.vtopPdfBypass = 'true'; nativeURLs.add(url);
@@ -119,7 +112,6 @@
   async function preview(url: string, init?: RequestInit, suggestedName?: string, fallback?: () => void, source?: Blob, saveOnly = false) {
     downloadIntent=null;
     const id = `pdf-${Date.now()}-${++sequence}`;
-    if (fallback) nativeDownloads.set(id,fallback);
     if (!saveOnly) emit('loading',id);
     try {
       const response = source ? null : await nativeFetch(url,{credentials:'same-origin',...init});
@@ -132,39 +124,43 @@
       let pathName = '';
       try { pathName = decodeURIComponent(new URL(url, document.baseURI).pathname.split('/').pop()!); } catch {}
       let name = filename(contentDisposition, suggestedName || pathName || (isPdf ? 'document' : 'download'));
+      const linkedName = suggestedName || linkFilename(url);
+      const typeName = [name, linkedName, pathName].find(value => value && /\.(?:pptx?|docx?)$/i.test(value)) || '';
+      const isPptx = /application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation/i.test(contentType) || /\.pptx$/i.test(typeName);
+      const isLegacyPpt = /application\/vnd\.ms-powerpoint/i.test(contentType) || /\.ppt$/i.test(typeName);
+      const isDocx = /application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document/i.test(contentType) || /\.docx$/i.test(typeName);
+      const isLegacyDoc = /application\/msword/i.test(contentType) || /\.doc$/i.test(typeName);
       let previewName = name;
-      if (opaqueFilename(name)) {
-        const linkedName = suggestedName || linkFilename(url);
+      if ((isPdf || isPptx || isLegacyPpt || isDocx || isLegacyDoc) && opaqueFilename(name)) {
         const title = isPdf ? await pdfTitle(blob) : undefined;
         previewName = title && !genericName(title) ? title : suggestedName || 'VTOP document';
         name = linkedName || previewName;
       }
-      const isPptx = /application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation/i.test(contentType) || /\.pptx$/i.test(name);
-      const isLegacyPpt = /application\/vnd\.ms-powerpoint/i.test(contentType) || /\.ppt$/i.test(name);
-      const isDocx = /application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document/i.test(contentType) || /\.docx$/i.test(name);
-      const isLegacyDoc = /application\/msword/i.test(contentType) || /\.doc$/i.test(name);
       if (isPdf) { name = fileNameWithExtension(name, 'pdf'); previewName = fileNameWithExtension(previewName, 'pdf'); }
       else if (isPptx) { name = fileNameWithExtension(name, 'pptx'); previewName = fileNameWithExtension(previewName, 'pptx'); }
       else if (isLegacyPpt) { name = fileNameWithExtension(name, 'ppt'); previewName = fileNameWithExtension(previewName, 'ppt'); }
       else if (isDocx) { name = fileNameWithExtension(name, 'docx'); previewName = fileNameWithExtension(previewName, 'docx'); }
       else if (isLegacyDoc) { name = fileNameWithExtension(name, 'doc'); previewName = fileNameWithExtension(previewName, 'doc'); }
+      if (!isPdf && /text\/html|application\/json/i.test(contentType)) {
+        if (fallback && /text\/html/i.test(contentType)) { emit('not-pdf',id); fallback(); return; }
+        throw new Error('VTOP returned a page instead of a document. Sign in again and retry.');
+      }
       if (saveOnly) { download(blob,name); return; }
       if (!isPdf) {
-        if (fallback && /text\/html/i.test(contentType)) { emit('not-pdf',id); fallback(); return; }
-        if (/text\/html|application\/json/i.test(contentType)) throw new Error('VTOP returned a page instead of a document. Sign in again and retry.');
         if (isPptx || isLegacyPpt || isDocx || isLegacyDoc) {
           const bytes = await blob.arrayBuffer();
           const documentType = isPptx ? 'pptx' : isLegacyPpt ? 'ppt' : isDocx ? 'docx' : 'doc';
-          emit('ready',id,{bytes,filename:name,previewName,documentType,nativeDownload:!!fallback});
+          emit('ready',id,{bytes,filename:name,previewName,documentType});
           return;
         }
         download(blob,name); emit('not-pdf',id); return;
       }
       // Send bytes directly; Firefox content scripts cannot reliably fetch page-owned blob URLs.
       const bytes = await blob.arrayBuffer();
-      emit('ready',id,{bytes,filename:name,previewName,documentType:'pdf',nativeDownload:!!fallback});
+      emit('ready',id,{bytes,filename:name,previewName,documentType:'pdf'});
     } catch (error) {
-      if (fallback) { nativeDownloads.delete(id);emit('not-pdf',id); fallback(); return; }
+      if (fallback) { emit('not-pdf',id); fallback(); return; }
+      if (saveOnly) emit('loading',id);
       emit('error',id,{message:(error as Error).message || 'Unable to preview this document.'});
     }
   }
@@ -219,6 +215,15 @@
     return nativeDispatch.call(this,event);
   };
   document.addEventListener('click',event => {
+    const origin = event.composedPath()[0];
+    if (origin instanceof HTMLAnchorElement && origin.dataset.vtopPdfBypass === 'true') {
+      // The Navigation API may also see the default download from this click.
+      if (!nativeURLs.has(origin.href)) {
+        const url = origin.href;
+        nativeURLs.add(url); setTimeout(() => nativeURLs.delete(url), 10000);
+      }
+      return;
+    }
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
       const anchor=(event.target as Partial<Element>).closest?.<HTMLAnchorElement>('a[href]');
       if (anchor && downloadAnchor(anchor)) { event.preventDefault(); event.stopImmediatePropagation(); return; }

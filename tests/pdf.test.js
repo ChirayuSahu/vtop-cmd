@@ -210,12 +210,44 @@ test('modifier-clicking preview Download still starts a native file download',as
  shadow.querySelector('.download').dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));
  assert.deepEqual(clicks,[{href:'blob:https://vtop.vit.ac.in/copy',name:'Lecture.pdf',bypass:'true'}]);dom.window.close();
 });
-test('preview Download replays the original native request when available',async()=>{
- const {dom,w,shadow,send}=previewWindow(),requests=[];w.postMessage=(data,origin)=>requests.push({data,origin});
- send('pdf-1-1','loading');send('pdf-1-1','ready',{bytes:samplePdf(),filename:'Lecture.pdf',nativeDownload:true});await pause();
- shadow.querySelector('.download').dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true}));
- // postMessage payloads originate in JSDOM's window realm, so compare their plain serialized value.
- assert.deepEqual(JSON.parse(JSON.stringify(requests)),[{data:{source:'vtop-command-pdf-download',id:'pdf-1-1'},origin:'https://vtop.vit.ac.in'}]);dom.window.close();
+test('preview Download uses the retained copy on every click after the original URL is revoked',async()=>{
+ const page=bridge(),viewer=previewWindow();
+ const original=page.w.document.createElement('a');
+ original.href=page.w.URL.createObjectURL(new page.w.Blob(['%PDF-1.4']));
+ original.download='Lecture.pdf';original.click();page.w.URL.revokeObjectURL(original.href);await pause();
+ for(const message of page.messages)viewer.send(message.id,message.kind,message);
+ const link=viewer.shadow.querySelector('.download');
+ const clicks=[];
+ link.addEventListener('click',event=>{
+  clicks.push({href:link.href,name:link.download,handled:event.defaultPrevented});
+  event.preventDefault();
+ });
+ link.click();link.click();
+ assert.deepEqual(clicks,Array(2).fill({href:'blob:https://vtop.vit.ac.in/copy',name:'Lecture.pdf',handled:false}));
+ page.dom.window.close();viewer.dom.window.close();
+});
+test('opaque Office attachments retain their type when the server sends generic binary data',async()=>{
+ for(const type of ['pptx','ppt','docx','doc']){
+  const page=bridge({body:'office document',type:'application/octet-stream',disposition:`attachment; filename="w4HdVJyD.${type}"`});
+  page.w.open('/vtop/download/file');await pause();
+  const ready=page.messages.find(message=>message.kind==='ready');
+  assert.equal(ready?.documentType,type);assert.equal(ready.filename,`VTOP document.${type}`);
+  assert.equal(page.downloads.length,0);page.dom.window.close();
+ }
+});
+test('direct download displays an error for a sign-in page or JSON error',async()=>{
+ for(const type of ['text/html','application/json']){
+  const page=bridge({body:type==='text/html'?'<html>Sign in</html>':'{"error":"expired"}',type,disposition:null});
+  const link=page.w.document.createElement('a');link.href='/vtop/download/file.pdf';page.w.document.body.append(link);
+  link.dispatchEvent(new page.w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));await pause();
+  assert.deepEqual(page.downloads,[]);
+  const viewer=previewWindow();
+  for(const message of page.messages)viewer.send(message.id,message.kind,message);
+  assert.ok(viewer.shadow.querySelector('dialog').open);
+  assert.match(viewer.shadow.querySelector('.status').textContent,/sign in again/i);
+  assert.ok(viewer.shadow.querySelector('.download').hidden);
+  viewer.dom.window.close();page.dom.window.close();
+ }
 });
 test('real Curriculum button submits curriculDown form to the viewer once with authenticated POST fields',async()=>{
  const {dom,w,calls,messages}=bridge();const form=w.document.createElement('form');form.id='curriculumDownloadForm';form.method='post';form.action='academics/curriculDown/';
@@ -249,6 +281,17 @@ function navigate(w,url,extra={}){
  Object.defineProperties(event,{destination:{value:{url:new URL(url,w.location.href).href}},navigationType:{value:'push'},hashChange:{value:false},downloadRequest:{value:null},formData:{value:null},...Object.fromEntries(Object.entries(extra).map(([key,value])=>[key,{value}]))});
  w.navigation.dispatchEvent(event);return event;
 }
+test('Navigation API leaves downloads from the preview link alone',()=>{
+ const {dom,w,calls}=bridge({navigation:true});
+ const host=w.document.createElement('div');w.document.body.append(host);
+ const shadow=host.attachShadow({mode:'open'}),link=w.document.createElement('a');
+ link.href='blob:https://vtop.vit.ac.in/preview-copy';link.download='Lecture.pdf';
+ link.dataset.vtopPdfBypass='true';shadow.append(link);
+ link.addEventListener('click',event=>event.preventDefault());
+ link.dispatchEvent(new w.MouseEvent('click',{bubbles:true,composed:true,cancelable:true}));
+ assert.equal(navigate(w,link.href,{downloadRequest:link.download}).defaultPrevented,false);
+ assert.equal(calls.length,0);dom.window.close();
+});
 test('Navigation API catches location-style downloads and POST navigations, leaving ordinary pages native',async()=>{
  const {dom,w,calls,messages}=bridge({navigation:true});
  const download=navigate(w,'/vtop/downloadQuestionPaper?id=7');await pause();

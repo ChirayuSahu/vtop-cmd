@@ -7,7 +7,7 @@
   // Viewer frame → preview: lifecycle notices and forwarded keys, tagged with the frame's nonce.
   interface ViewerMessage { type?: 'viewer-ready'|'viewer-received'|'viewer-loaded'|'viewer-error'|'viewer-key'; nonce?: string; key?: string; code?: string; metaKey?: boolean; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }
   // pdf-bridge → preview on this window; `id` and `bytes` are checked before use.
-  interface BridgeMessage { source?: string; id?: unknown; kind?: 'loading'|'not-pdf'|'error'|'ready'; bytes?: unknown; filename?: unknown; previewName?: unknown; documentType?: string; nativeDownload?: unknown }
+  interface BridgeMessage { source?: string; id?: unknown; kind?: 'loading'|'not-pdf'|'error'|'ready'; bytes?: unknown; filename?: unknown; previewName?: unknown; documentType?: string }
   // Either kind may arrive on the one listener, so every field is optional until checked.
   type IncomingMessage = Partial<ViewerMessage & BridgeMessage> | null | undefined;
   // Same surface, header and button language as the command menu (content.js).
@@ -29,13 +29,13 @@
     iframe{display:block;width:100%;flex:1;min-height:0;border:0;background:var(--surface)}
     @media(max-width:480px){.brand-text{display:none}header{padding:12px 14px}}
     @media(prefers-reduced-motion:no-preference){dialog[open]{animation:arrive .13s ease-out}@keyframes arrive{from{transform:translateY(-8px);opacity:0}to{transform:translateY(0);opacity:1}}}
-  </style><dialog aria-label="Document preview"><header><span class="brand">${logo}<span class="brand-text">VTOP / PREVIEW</span></span><h2>Document preview</h2><a class="download" hidden>Download</a><button class="close" type="button" aria-label="Close document preview">Esc</button></header><div class="status" role="status" aria-live="polite"></div></dialog>`);
+  </style><dialog aria-label="Document preview"><header><span class="brand">${logo}<span class="brand-text">VTOP / PREVIEW</span></span><h2>Document preview</h2><a class="download" data-vtop-pdf-bypass="true" hidden>Download</a><button class="close" type="button" aria-label="Close document preview">Esc</button></header><div class="status" role="status" aria-live="polite"></div></dialog>`);
   document.documentElement.append(host);
   const dialog=shadow.querySelector('dialog')!,status=shadow.querySelector<HTMLDivElement>('.status')!,download=shadow.querySelector<HTMLAnchorElement>('.download')!;
   const viewerURL=chrome.runtime.getURL('pdf-viewer.html');
   const parsedViewerURL=new URL(viewerURL);
   const viewerOrigin=parsedViewerURL.protocol==='moz-extension:' ? `${parsedViewerURL.protocol}//${parsedViewerURL.host}` : parsedViewerURL.origin;
-  let activeId: string|null|undefined,blobURL: string|null|undefined,previousFocus: (Element & HTMLOrSVGElement)|null|undefined,nonce: string|undefined,bytes: ArrayBuffer|null|undefined,filename: string|undefined,documentType: string|undefined,frame: HTMLIFrameElement|null|undefined,received: boolean|undefined,watchdog: ReturnType<typeof setTimeout>|undefined,theme:VtopTheme='light',nativeDownload=false;
+  let activeId: string|null|undefined,blobURL: string|null|undefined,previousFocus: (Element & HTMLOrSVGElement)|null|undefined,nonce: string|undefined,bytes: ArrayBuffer|null|undefined,filename: string|undefined,documentType: string|undefined,frame: HTMLIFrameElement|null|undefined,received: boolean|undefined,watchdog: ReturnType<typeof setTimeout>|undefined,theme:VtopTheme='light';
   const validTheme=(value:unknown):value is VtopTheme=>['light','dark','oled','blue'].includes(String(value));
   function downloadName(value: unknown, type: string) {
     let name=String(value||'document').replace(/[\\/\x00-\x1f]/g,'_').trim().slice(0,180);
@@ -49,7 +49,7 @@
     chrome.storage.local.get(['theme','darkMode']).then(settings=>setTheme(settings.theme ?? (settings.darkMode===true?'blue':'light'))).catch(()=>{});
     chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.theme)setTheme(changes.theme.newValue);else if(area==='local'&&changes.darkMode)setTheme(changes.darkMode.newValue===true?'blue':'light');});
   } catch { /* Preview without the extension runtime. */ }
-  function release(){ clearTimeout(watchdog);if(blobURL)URL.revokeObjectURL(blobURL);blobURL=null;bytes=null;nativeDownload=false;frame?.remove();frame=null;download.removeAttribute('href');download.hidden=true; }
+  function release(){ clearTimeout(watchdog);if(blobURL)URL.revokeObjectURL(blobURL);blobURL=null;bytes=null;frame?.remove();frame=null;download.removeAttribute('href');download.hidden=true; }
   function deliver(){ if(bytes&&frame?.contentWindow&&!received)frame.contentWindow.postMessage({type:'pdf-data',nonce,bytes:bytes.slice(0),filename,documentType},viewerOrigin); }
   // A new frame per document: reusing one turns viewer#a → viewer#b into a hash-only navigation that never reloads.
   function mount(type: string){
@@ -64,7 +64,6 @@
   // Modifier-clicking a blob URL is normally treated as navigation by browsers. Keep Download a download:
   // create a short-lived page anchor marked for the MAIN-world bridge to leave alone.
   download.addEventListener('click',event=>{
-    if(nativeDownload&&activeId){event.preventDefault();window.postMessage({source:'vtop-command-pdf-download',id:activeId},location.origin);return;}
     if(!(event.shiftKey||event.ctrlKey||event.metaKey||event.altKey)||!download.href)return;
     event.preventDefault();
     const native=document.createElement('a');
@@ -99,7 +98,7 @@
     if(message.kind==='loading'){show(message.id);return;}
     if(message.id!==activeId)return;
     if(message.kind==='not-pdf'){close();return;}
-    if(message.kind==='error'){status.textContent='Unable to load this document. Sign in again if needed, or Shift-click its original download link.';return;}
+    if(message.kind==='error'){status.textContent='Unable to load this document. Sign in again if needed, then retry the original link.';return;}
     if(message.kind!=='ready')return;
     const id=message.id;
     try{
@@ -107,7 +106,6 @@
       const data=message.bytes as ArrayBuffer; // Checked by its toString tag just above.
       if(id!==activeId || !dialog.open)return;
       documentType=message.documentType || (new TextDecoder().decode(data.slice(0,5))==='%PDF-'?'pdf':'unsupported');
-      nativeDownload=message.nativeDownload===true;
       filename=downloadName(message.filename,documentType);
       const mime=documentType==='pptx'?'application/vnd.openxmlformats-officedocument.presentationml.presentation':documentType==='ppt'||documentType==='unsupported'?'application/vnd.ms-powerpoint':documentType==='docx'?'application/vnd.openxmlformats-officedocument.wordprocessingml.document':documentType==='doc'?'application/msword':'application/pdf';
       bytes=data;blobURL=URL.createObjectURL(new Blob([data],{type:mime}));
