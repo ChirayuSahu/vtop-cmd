@@ -178,10 +178,10 @@
     if(!candidate(url)&&!isBlob&&!isDataPdf&&!explicitFile)return false;
     void preview(url,undefined,contextFilename(anchor),undefined,pdfBlobs.get(url),true); return true;
   }
-  // vtopDownload() opens `<endpoint>?authorizedID=…&_csrf=…`; a CSRF token in a popup URL marks a download.
-  const tokenURL = (value: URLInput) => { try { return new URL(value as string | URL,document.baseURI).searchParams.has('_csrf'); } catch { return false; } };
+  // Some download helpers open opaque endpoints, so a recent download-labelled control is the only
+  // safe signal for those. `_csrf` appears on ordinary VTOP popups too and must not be used alone.
   window.open = function (url, ...args) {
-    if (!bypassClick && (candidate(url) || pdfBlobs.has(url as string) || /^data:application\/pdf(?:[;,])/i.test(String(url)) || localURL(url)&&(pendingDownload()||tokenURL(url)))) {
+    if (!bypassClick && (candidate(url) || pdfBlobs.has(url as string) || /^data:application\/pdf(?:[;,])/i.test(String(url)) || localURL(url)&&pendingDownload())) {
       const href = new URL(url as string | URL,document.baseURI).href;
       // Fall back to VTOP's original popup on any failed preview. Some endpoints depend on navigation-only
       // behaviour (rather than fetch) and the native path remains the most reliable final download route.

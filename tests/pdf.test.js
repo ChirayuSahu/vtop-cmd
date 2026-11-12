@@ -349,9 +349,12 @@ test('VTOP downloadFileWithProgress: untyped blob revoked right after click stil
  const other=bridge();const sheet=other.w.document.createElement('a');sheet.href=other.w.URL.createObjectURL(new other.w.Blob(['PK spreadsheet']));sheet.download='marks.xlsx';
  other.w.document.body.append(sheet);sheet.click();await pause();assert.equal(other.downloads.length,1);assert.equal(other.downloads[0].name,'marks.xlsx');other.dom.window.close();
 });
-test('vtopDownload-style popups with a CSRF token open the viewer; HTML responses fall back to the popup',async()=>{
- const a=bridge();a.w.open('examinations/getQuestionPaper/12?authorizedID=X&_csrf=test');await pause();
+test('download-labelled controls can preview opaque VTOP popups; other CSRF popups stay native',async()=>{
+ const a=bridge();const download=a.w.document.createElement('button');download.textContent='Download question paper';
+ download.addEventListener('click',()=>a.w.open('examinations/getQuestionPaper/12?authorizedID=X&_csrf=test'));a.w.document.body.append(download);download.click();await pause();
  assert.equal(a.opens.length,0);assert.ok(a.messages.some(m=>m.kind==='ready'));a.dom.window.close();
- const b=bridge({body:'<html>page</html>',type:'text/html'});b.w.open('examinations/getQuestionPaper/12?authorizedID=X&_csrf=test');await pause();
+ const b=bridge({body:'<html>page</html>',type:'text/html'});const fallback=b.w.document.createElement('button');fallback.textContent='Download question paper';
+ fallback.addEventListener('click',()=>b.w.open('examinations/getQuestionPaper/12?authorizedID=X&_csrf=test'));b.w.document.body.append(fallback);fallback.click();await pause();
  assert.equal(b.opens.length,1);assert.ok(b.messages.some(m=>m.kind==='not-pdf'));b.dom.window.close();
+ const c=bridge();c.w.open('vtop/login?_csrf=test');assert.equal(c.opens.length,1);assert.equal(c.calls.length,0);c.dom.window.close();
 });
