@@ -57,6 +57,12 @@ test('external URLs and ordinary VTOP navigation retain native browser behavior'
  const {dom,w,calls,opens}=bridge();w.open('https://example.com/file.pdf');w.open('/vtop/academics/home');
  assert.equal(opens.length,2);assert.equal(calls.length,0);dom.window.close();
 });
+test('Student Login popups stay native and never open a document preview',()=>{
+ const {dom,w,calls,opens,messages}=bridge();const button=w.document.createElement('button');
+ button.textContent='VTOP Student Login';button.addEventListener('click',()=>w.open('/vtop/login'));
+ w.document.body.append(button);button.click();
+ assert.equal(opens.length,1);assert.equal(calls.length,0);assert.equal(messages.some(message=>message.kind==='loading'),false);dom.window.close();
+});
 test('PDF blob anchors are intercepted even when detached; non-PDF responses keep download behavior',async()=>{
  const a=bridge();const anchor=a.w.document.createElement('a');anchor.href=a.w.URL.createObjectURL(new a.w.Blob(['%PDF-1.4'],{type:'application/pdf'}));anchor.download='notes.pdf';anchor.click();await pause();
  assert.ok(a.messages.some(m=>m.kind==='ready'));assert.equal(a.downloads.length,0);a.dom.window.close();

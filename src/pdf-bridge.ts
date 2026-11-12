@@ -210,7 +210,10 @@
     const control=(event.target as Partial<Element>).closest?.('button,a,input[type="button"],input[type="submit"],[role="button"]');
     // Keep the surrounding document label even when VTOP opens an opaque download endpoint rather than
     // exposing a descriptive URL. It is only used if the server itself returns a generated filename.
-    downloadIntent=control?{time:Date.now(),name:contextFilename(control)}:null;
+    // Only a control that actually signals a document download can make a following opaque popup
+    // previewable. Remembering every click misclassified ordinary VTOP popups (for example Student
+    // Login) as downloads for ten seconds.
+    downloadIntent=control&&downloadHint(controlHint(control))?{time:Date.now(),name:contextFilename(control)}:null;
     if (event.defaultPrevented || event.button !== 0) return;
     const anchor = (event.target as Partial<Element>).closest?.<HTMLAnchorElement>('a[href]');
     if (anchor && handleAnchor(anchor)) { event.preventDefault(); event.stopImmediatePropagation(); }
