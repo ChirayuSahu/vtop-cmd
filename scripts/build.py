@@ -5,7 +5,9 @@ import shutil
 import zipfile
 import struct
 import argparse
+import os
 import subprocess
+import tempfile
 from browser_manifest import browser_manifest
 
 root = Path(__file__).resolve().parent.parent
@@ -28,6 +30,31 @@ parser.add_argument('--browser', choices=['chrome', 'firefox', 'all'], default='
 parser.add_argument('--source-only', action='store_true')
 options = parser.parse_args()
 selected = options.browser
+
+def archives_have_same_contents(first, second):
+    """Compare ZIP payloads without depending on timestamps or compression metadata."""
+    with zipfile.ZipFile(first) as left, zipfile.ZipFile(second) as right:
+        if left.namelist() != right.namelist():
+            return False
+        return all(
+            left.read(name) == right.read(name)
+            for name in left.namelist()
+        )
+
+def publish_archive(staged, archive):
+    """Publish a completed archive without corrupting an archive another app has open."""
+    if archive.exists() and archives_have_same_contents(staged, archive):
+        staged.unlink()
+        return
+    try:
+        staged.replace(archive)
+    except OSError as error:
+        staged.unlink(missing_ok=True)
+        raise RuntimeError(
+            f'Cannot replace {archive}: it is open in another application. '
+            'Close the archive viewer or Explorer preview and run the build again.'
+        ) from error
+
 def build_source_archive():
     version = source_manifest['version']
     archive = root / 'dist' / f'vtop-command-source-{version}.zip'
@@ -92,20 +119,26 @@ for browser in browsers:
     for asset in required:
         assert (output / asset).is_file(), f'Missing runtime asset: {asset}'
     archive = root / 'dist' / f"{package_name}-{manifest['version']}.zip"
-    with zipfile.ZipFile(archive, 'w', zipfile.ZIP_DEFLATED) as bundle:
+    descriptor, staged_archive = tempfile.mkstemp(
+        dir=archive.parent, prefix=f'.{archive.name}.', suffix='.tmp'
+    )
+    os.close(descriptor)
+    Path(staged_archive).unlink()
+    with zipfile.ZipFile(staged_archive, 'w', zipfile.ZIP_DEFLATED) as bundle:
         for name in files:
             bundle.write(output / name, name)
         for directory in [vendor, output / 'icons']:
             for path in directory.rglob('*'):
                 if path.is_file():
                     bundle.write(path, path.relative_to(output).as_posix())
-    with zipfile.ZipFile(archive) as bundle:
+    with zipfile.ZipFile(staged_archive) as bundle:
         assert bundle.testzip() is None
         assert 'manifest.json' in bundle.namelist(), 'Package manifest must be at the archive root'
         for name in bundle.namelist():
             parts = Path(name).parts
             assert not any(part in {'.git', 'node_modules', 'dist'} for part in parts), name
             assert Path(name).suffix.lower() not in {'.xpi', '.zip'}, name
+    publish_archive(Path(staged_archive), archive)
     for obsolete in [archive.parent / f'{package_name}.zip', *archive.parent.glob(f'{package_name}-[0-9]*.zip')]:
         if obsolete != archive and obsolete.exists():
             obsolete.unlink()
