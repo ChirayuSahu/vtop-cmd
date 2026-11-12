@@ -91,15 +91,22 @@ async function Home() {
             <a href="#install" className="transition-colors hover:text-white">Install</a>
             <a href={REPO_URL} className="transition-colors hover:text-white">GitHub</a>
           </div>
-          <a href="#download" className="btn btn-default rounded-xl text-[13px]">
+          <a href="#download" className="btn btn-default btn-compact text-[13px]">
             <span className="btn-face h-[30px] px-4">Download</span>
           </a>
         </nav>
+        <a
+          href={`${REPO_URL}/releases/tag/v1.2.5`}
+          className="mx-auto mt-2 flex max-w-7xl items-center justify-between gap-3 rounded-xl bg-accent px-4 py-2 text-[13px] font-medium text-white shadow-sm transition-colors hover:bg-accent/95 focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          <span>Version 1.2.5 is live</span>
+          <span>Release notes <span aria-hidden="true">↗</span></span>
+        </a>
       </div>
 
       <main className="flex-1">
         {/* Hero */}
-        <section className="mx-auto flex min-h-svh max-w-7xl flex-col items-center justify-center px-4 pt-24 pb-16 text-center sm:px-6">
+        <section className="mx-auto flex min-h-svh max-w-7xl flex-col items-center justify-center px-4 pt-32 pb-16 text-center sm:px-6">
           {/* Phones: four balanced lines (Tired of / the old and / slow VTOP? / Fix it.); wider screens: three. */}
           <h1 className="display text-[min(calc((100vw-2rem)/5.3),4.75rem)] sm:text-[clamp(3rem,9.5vw,7.25rem)]">
             <RevealText className="block">
@@ -122,14 +129,14 @@ async function Home() {
             <div className="flex flex-col items-center gap-3">
               <Downloads chromeUrl={chromeUrl} firefoxUrl={firefoxUrl} />
               <span className="text-xs text-muted">
-                {version ? `v${version} · ` : ""}Free &amp; open source · Runs only on vtop.vit.ac.in
+                Free &amp; open source · Runs only on vtop.vit.ac.in
               </span>
             </div>
           </Reveal>
         </section>
 
         {/* Key benefits */}
-        <section id="features" className="mx-auto max-w-7xl scroll-mt-24 px-4 sm:px-6">
+        <section id="features" className="mx-auto max-w-7xl scroll-mt-32 px-4 sm:px-6">
           <Reveal className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <h2 className="display max-w-md text-3xl sm:text-4xl">
               <RevealText>Your key to a faster, calmer VTOP</RevealText>
@@ -241,7 +248,7 @@ async function Home() {
         </section>
 
         {/* Safety */}
-        <section id="safety" className="mx-auto mt-28 max-w-7xl scroll-mt-24 px-4 sm:px-6">
+        <section id="safety" className="mx-auto mt-28 max-w-7xl scroll-mt-32 px-4 sm:px-6">
           <h2 className="display text-[clamp(2.4rem,6vw,4.5rem)]">
             <RevealText className="block">We give you full</RevealText>
             <RevealText delay={380} className="block">
@@ -264,7 +271,7 @@ async function Home() {
         </section>
 
         {/* Install */}
-        <section id="install" className="mx-auto mt-32 max-w-7xl scroll-mt-24 px-4 sm:px-6">
+        <section id="install" className="mx-auto mt-32 max-w-7xl scroll-mt-32 px-4 sm:px-6">
           <Reveal>
             <h2 className="display text-3xl sm:text-4xl">
               <RevealText>Install in a minute</RevealText>
@@ -336,7 +343,7 @@ async function Home() {
         </section>
 
         {/* Get started */}
-        <section id="download" className="mx-auto mt-32 max-w-3xl scroll-mt-24 px-4 pb-28 text-center sm:px-6">
+        <section id="download" className="mx-auto mt-32 max-w-3xl scroll-mt-32 px-4 pb-28 text-center sm:px-6">
           <Reveal>
             <div className="pulse mx-auto flex size-16 items-center justify-center rounded-2xl bg-accent">
               <Logo size={40} />
