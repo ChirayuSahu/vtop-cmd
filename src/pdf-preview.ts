@@ -54,6 +54,15 @@
   }
   function close(){if(dialog.open)dialog.close();}
   shadow.querySelector<HTMLButtonElement>('.close')!.addEventListener('click',close);
+  // Modifier-clicking a blob URL is normally treated as navigation by browsers. Keep Download a download:
+  // create a short-lived page anchor marked for the MAIN-world bridge to leave alone.
+  download.addEventListener('click',event=>{
+    if(!(event.shiftKey||event.ctrlKey||event.metaKey||event.altKey)||!download.href)return;
+    event.preventDefault();
+    const native=document.createElement('a');
+    native.href=download.href; native.download=download.download; native.dataset.vtopPdfBypass='true';
+    document.documentElement.append(native); native.click(); native.remove();
+  });
   // A click on the backdrop (outside the dialog box) closes it, like the command menu.
   dialog.addEventListener('click',event=>{if(event.target!==dialog)return;const r=dialog.getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)close();});
   dialog.addEventListener('close',()=>{activeId=null;release();if(previousFocus?.isConnected)previousFocus.focus();});
