@@ -425,3 +425,55 @@ test('download-labelled controls can preview opaque VTOP popups; other CSRF popu
  assert.equal(b.opens.length,1);assert.ok(b.messages.some(m=>m.kind==='not-pdf'));b.dom.window.close();
  const c=bridge();c.w.open('vtop/login?_csrf=test');assert.equal(c.opens.length,1);assert.equal(c.calls.length,0);c.dom.window.close();
 });
+
+test('generated identifiers use document labels for preview and direct download',async()=>{
+ for(const identifier of ['708f1eaa-fe75-4448-930f-d324a2593b9f','abcdef0123456789abcdef0123456789','w4HdVJyD']){
+  for(const direct of [false,true]){
+   const page=bridge({disposition:`attachment; filename="${identifier}.pdf"`});
+   const link=page.w.document.createElement('a');
+   link.href='/vtop/download/file';link.download=identifier+'.pdf';
+   link.textContent='Unit 2 Notes';page.w.document.body.append(link);
+   link.dispatchEvent(new page.w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:direct}));await pause();
+   assert.equal(direct?page.downloads[0]?.name:page.messages.find(m=>m.kind==='ready')?.filename,'Unit 2 Notes.pdf');
+   page.dom.window.close();
+  }
+ }
+});
+test('meaningful server names win over labels across supported types',async()=>{
+ for(const type of ['pdf','pptx','ppt','docx','doc']){
+  const page=bridge({body:type==='pdf'?'%PDF-1.4':'Office bytes',type:'application/octet-stream',disposition:`attachment; filename="Original Notes.${type}"`});
+  const link=page.w.document.createElement('a');link.href='/vtop/download/file';link.title='Other Label';page.w.document.body.append(link);link.click();await pause();
+  assert.equal(page.messages.find(m=>m.kind==='ready')?.filename,`Original Notes.${type}`);page.dom.window.close();
+ }
+});
+test('document-title column wins over unrelated course and date cells',async()=>{
+ const page=bridge({disposition:'attachment; filename="abcdef0123456789.pdf"'});
+ page.w.document.body.innerHTML='<table><thead><tr><th>Course Name</th><th>Document Title</th><th>Date</th><th>Action</th></tr></thead><tbody><tr><td>Computer Science</td><td>Unit 3 Notes</td><td>2026-11-14</td><td><a href="/vtop/download/file">Download</a></td></tr></tbody></table>';
+ page.w.document.querySelector('a').click();await pause();
+ assert.equal(page.messages.find(m=>m.kind==='ready')?.filename,'Unit 3 Notes.pdf');page.dom.window.close();
+});
+test('encoded contextual names are sanitized for direct download',async()=>{
+ const page=bridge({disposition:'attachment; filename="abcdef0123456789.pdf"'});
+ const link=page.w.document.createElement('a');link.href='/vtop/download/file';link.dataset.filename='Unit%202%2FNotes%3A%20Intro';
+ page.w.document.body.append(link);link.dispatchEvent(new page.w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));await pause();
+ assert.equal(page.downloads[0]?.name,'Unit 2_Notes_ Intro.pdf');page.dom.window.close();
+});
+test('generated names fall back to URL, PDF title, then clean default',async()=>{
+ for(const [url,body,expected] of [
+  ['/vtop/download/file?fileName=Lecture%20Notes.pdf','%PDF-1.4','Lecture Notes.pdf'],
+  ['/vtop/download/file','%PDF-1.4 /Title (Lecture Notes)','Lecture Notes.pdf'],
+  ['/vtop/download/file','%PDF-1.4','VTOP document.pdf']
+ ]){
+  const page=bridge({body,disposition:'attachment; filename="abcdef0123456789.pdf"'});
+  page.w.open(url);await pause();assert.equal(page.messages.find(m=>m.kind==='ready')?.filename,expected);page.dom.window.close();
+ }
+});
+test('POST downloads retain the clicked document label and send the request once',async()=>{
+ const page=bridge({disposition:'attachment; filename="abcdef0123456789.pdf"'});
+ const form=page.w.document.createElement('form');form.method='post';form.action='/vtop/download/document';
+ const button=page.w.document.createElement('button');button.type='button';button.textContent='Download';button.dataset.filename='Semester Notes';
+ button.addEventListener('click',()=>form.submit());form.append(button);page.w.document.body.append(form);
+ button.dispatchEvent(new page.w.MouseEvent('click',{bubbles:true,cancelable:true}));await pause();
+ assert.equal(page.calls.length,1);assert.equal(page.calls[0].init.method,'POST');
+ assert.equal(page.messages.find(m=>m.kind==='ready')?.filename,'Semester Notes.pdf');page.dom.window.close();
+});

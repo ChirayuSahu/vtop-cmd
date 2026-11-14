@@ -37,20 +37,37 @@
   }
   function pendingDownload() {return downloadIntent && Date.now()-downloadIntent.time<10000;}
   const genericName = (value: string) => /^(?:(?:download|view|open)(?:\s+(?:as\s+)?(?:pdf|file|document))?|file|pdf|document|question paper)$/i.test(value.trim());
-  function contextFilename(control: Element | null | undefined) {
-    if (!control) return undefined;
-    const named = [control.getAttribute('data-filename'),control.getAttribute('data-file-name'),control.getAttribute('download'),control.getAttribute('title'),control.getAttribute('aria-label')]
-      .find(value => !!value && !genericName(value));
-    if (named) return named;
-    const text = control.textContent?.replace(/\s+/g,' ').trim() || '';
-    if (text && !genericName(text) && text.length > 3) return text;
-    // Icon-only VTOP download buttons normally live in a row containing the assignment or course title.
-    const cells = [...(control.closest('tr')?.querySelectorAll('td,th') || [])]
-      .map(cell => cell.textContent?.replace(/\s+/g,' ').trim() || '')
-      .filter(value => value.length > 3 && value.length < 120 && !genericName(value) && !/^\d+(?:\.\d+)?$/.test(value));
-    return cells.sort((a,b) => b.length-a.length)[0];
+  function opaqueFilename(value: string) {
+    const stem = value.replace(/\.[^.]+$/, '');
+    return /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(stem) ||
+      /^[a-f0-9]{16,}$/i.test(stem) ||
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z0-9_-]{6,}$/.test(stem);
   }
-  const opaqueFilename = (value: string) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z0-9_-]{6,}$/ .test(value.replace(/\.[^.]+$/,''));
+  function descriptiveName(value: string | null | undefined) {
+    if (!value) return undefined;
+    const name = filename(null, value);
+    const stem = name.replace(/\.(?:pdf|pptx?|docx?)$/i, '');
+    return name && !genericName(stem) && !opaqueFilename(name) && !/^\d+$/.test(stem) ? name : undefined;
+  }
+  function contextFilename(control: Element | null | undefined): string | undefined {
+    if (!control) return undefined;
+    const candidates = [
+      control.getAttribute('data-filename'), control.getAttribute('data-file-name'),
+      control.getAttribute('download'), control.getAttribute('title'), control.getAttribute('aria-label'),
+      control.textContent?.replace(/\s+/g, ' ').trim()
+    ];
+    const named = candidates.map(descriptiveName).find(Boolean);
+    if (named) return named;
+    const row = control.closest('tr');
+    const cells = [...(row?.querySelectorAll('td,th') || [])];
+    const headers = [...(row?.closest('table')?.querySelectorAll('thead th,thead td') || [])];
+    const titleIndex = headers.findIndex(cell => /^(?:(?:document|file|assignment|material)\s*(?:name|title)|title|topic)$/i.test(cell.textContent || ''));
+    const title = descriptiveName(cells[titleIndex]?.textContent?.trim());
+    if (title) return title;
+    return cells.filter(cell => !cell.contains(control))
+      .map(cell => descriptiveName(cell.textContent?.replace(/\s+/g, ' ').trim()))
+      .find(Boolean);
+  }
   async function pdfTitle(blob: Blob) {
     // VTOP sometimes sends an opaque attachment name but preserves the document's PDF title metadata.
     const bytes = await blob.slice(0,128 * 1024).arrayBuffer();
@@ -76,19 +93,19 @@
     const plain = header?.match(/filename\s*=\s*(?:"([^"]+)"|([^;]+))/i);
     let name = encoded ? encoded.replace(/^[^']*'[^']*'/, '') : plain?.[1] || plain?.[2]?.trim() || fallback;
     try { if (encoded || /%[0-9a-f]{2}/i.test(name)) name = decodeURIComponent(name); } catch {}
-    return name.replace(/[\\/\x00-\x1f]/g, '_').trim().slice(0,180) || fallback;
+    return name.replace(/[\\/<>:"|?*\x00-\x1f\x7f]/g, '_').trim().replace(/[. ]+$/, '').slice(0,180) || 'document';
   }
   function linkFilename(value: string) {
     try {
       const url = new URL(value,document.baseURI);
       const candidates = [
-        ...[...url.searchParams].filter(([key]) => /^(?:file|document|doc)?name$|^(?:file|document|doc)?title$/i.test(key.replace(/[_-]/g,''))).map(([,name]) => ({name,explicit:true})),
-        {name:decodeURIComponent(url.pathname.split('/').pop() || ''),explicit:false}
+        ...[...url.searchParams].filter(([key]) => /^(?:file|document|doc)?name$|^(?:file|document|doc)?title$/i.test(key.replace(/[_-]/g,''))).map(([,name]) => ({name})),
+        {name:decodeURIComponent(url.pathname.split('/').pop() || '')}
       ];
-      return candidates.find(({name:value,explicit}) => {
+      return candidates.find(({name:value}) => {
         const name = filename(null,value);
         const stem = name.replace(/\.[^.]+$/,'');
-        return !!stem && !genericName(stem) && (explicit || !opaqueFilename(name)) && !/^\d+$/.test(stem);
+        return !!stem && !genericName(stem) && !opaqueFilename(name) && !/^\d+$/.test(stem);
       })?.name;
     } catch { return undefined; }
   }
@@ -124,7 +141,7 @@
       let pathName = '';
       try { pathName = decodeURIComponent(new URL(url, document.baseURI).pathname.split('/').pop()!); } catch {}
       let name = filename(contentDisposition, suggestedName || pathName || (isPdf ? 'document' : 'download'));
-      const linkedName = suggestedName || linkFilename(url);
+      const linkedName = descriptiveName(suggestedName) || descriptiveName(linkFilename(url));
       const typeName = [name, linkedName, pathName].find(value => value && /\.(?:pptx?|docx?)$/i.test(value)) || '';
       const isPptx = /application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation/i.test(contentType) || /\.pptx$/i.test(typeName);
       const isLegacyPpt = /application\/vnd\.ms-powerpoint/i.test(contentType) || /\.ppt$/i.test(typeName);
@@ -134,8 +151,10 @@
       if ((isPdf || isPptx || isLegacyPpt || isDocx || isLegacyDoc) && opaqueFilename(name)) {
         const title = isPdf ? await pdfTitle(blob) : undefined;
         previewName = title && !genericName(title) ? title : suggestedName || 'VTOP document';
-        name = linkedName || previewName;
+        name = linkedName || descriptiveName(title) || 'VTOP document';
       }
+      name = filename(null, name);
+      previewName = filename(null, previewName);
       if (isPdf) { name = fileNameWithExtension(name, 'pdf'); previewName = fileNameWithExtension(previewName, 'pdf'); }
       else if (isPptx) { name = fileNameWithExtension(name, 'pptx'); previewName = fileNameWithExtension(previewName, 'pptx'); }
       else if (isLegacyPpt) { name = fileNameWithExtension(name, 'ppt'); previewName = fileNameWithExtension(previewName, 'ppt'); }
@@ -179,7 +198,7 @@
     const fallback = () => {
       bypassPreview(); originalClick.call(anchor);
     };
-    preview(url,undefined,contextFilename(anchor),fallback,pdfBlobs.get(url)); return true;
+    preview(url,undefined,contextFilename(anchor) || (pendingDownload() ? downloadIntent?.name : undefined),fallback,pdfBlobs.get(url)); return true;
   }
   function downloadAnchor(anchor: HTMLAnchorElement) {
     const rawHref=anchor.getAttribute('href')||'';
@@ -247,12 +266,13 @@
     if (!localURL(url.href) || (!candidate(url.href)&&!intendedDownload) || form.querySelector('input[type=file]')) return false;
     const method = (submitter?.getAttribute('formmethod') || form.method || 'get').toUpperCase();
     if (!['GET','POST'].includes(method)) return false;
+    const suggestedName = contextFilename(submitter) || (pendingDownload() ? downloadIntent?.name : undefined);
     const fields = new FormData(form);
     if (submitter?.name) fields.append(submitter.name,submitter.value);
     const params = new URLSearchParams(fields as unknown as string[][]/* lib.dom omits FormData; file forms never get here */);
-    if (method === 'GET') { for (const [key,value] of params) url.searchParams.append(key,value); preview(url.href); }
-    else if (form.enctype === 'multipart/form-data') preview(url.href,{method,body:fields});
-    else if (form.enctype === 'application/x-www-form-urlencoded') preview(url.href,{method,body:params});
+    if (method === 'GET') { for (const [key,value] of params) url.searchParams.append(key,value); preview(url.href,undefined,suggestedName); }
+    else if (form.enctype === 'multipart/form-data') preview(url.href,{method,body:fields},suggestedName);
+    else if (form.enctype === 'application/x-www-form-urlencoded') preview(url.href,{method,body:params},suggestedName);
     else return false;
     return true;
   }
@@ -269,7 +289,7 @@
     const fields = event.formData;
     if (fields ? !candidate(url) : !candidate(url) && !isBlob && !isDataPdf && !(localURL(url) && (isDownload || pendingDownload()))) return;
     event.preventDefault();
-    preview(url,fields ? {method:'POST',body:fields} : undefined,event.downloadRequest || undefined,fields ? undefined : () => {
+    preview(url,fields ? {method:'POST',body:fields} : undefined,descriptiveName(event.downloadRequest) || (pendingDownload() ? downloadIntent?.name : undefined),fields ? undefined : () => {
       // A GET that merely looks like a download is opened natively instead of being shown as an error.
       nativeURLs.add(url); setTimeout(() => nativeURLs.delete(url),10000); location.assign(url);
     });
