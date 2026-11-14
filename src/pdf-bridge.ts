@@ -134,6 +134,14 @@
     const id = `pdf-${Date.now()}-${++sequence}`;
     if (!saveOnly) emit('loading',id);
     try {
+      // VTOP has already fetched this blob. A course filename supplies both the name
+      // and extension, so Shift-click can save immediately without inspecting its bytes.
+      const sourceName = filename(null, suggestedName || '');
+      if (saveOnly && source && vtopFilename.test(sourceName) &&
+          /\.(?:pdf|pptx?|docx?)$/i.test(sourceName) && !/text\/html|application\/json/i.test(source.type)) {
+        const suffix = sourceName.slice(sourceName.lastIndexOf('_') + 1);
+        if (suffix.replace(/\.[^.]+$/, '').trim()) { download(source, suffix); return; }
+      }
       const response = source ? null : await nativeFetch(url,{credentials:'same-origin',...init});
       if (response && !response.ok) throw new Error('The document could not be loaded. Your VTOP session may have expired.');
       const blob = source || await response!.blob();
@@ -154,7 +162,7 @@
       const documentSuffix = vtopFilename.test(name) ? name.slice(name.lastIndexOf('_') + 1) : undefined;
       let previewName = name;
       if ((isPdf || isPptx || isLegacyPpt || isDocx || isLegacyDoc) && opaqueFilename(name)) {
-        const title = isPdf ? await pdfTitle(blob) : undefined;
+        const title = isPdf && (!saveOnly || !(documentSuffix || linkedName)) ? await pdfTitle(blob) : undefined;
         previewName = title && !genericName(title) ? title : suggestedName || 'VTOP document';
         name = documentSuffix || linkedName || descriptiveName(title) || 'VTOP document';
       }

@@ -518,3 +518,21 @@ test('Shift-clicking a download button saves a popup response directly',async()=
  assert.equal(downloads[0]?.name,'Module-8.pdf');assert.equal(opens.length,0);
  assert.equal(messages.some(m=>m.kind==='loading'||m.kind==='ready'),false);dom.window.close();
 });
+test('Shift-click saves an already-downloaded course blob without reading it again',()=>{
+ const {dom,w,downloads,calls,messages}=bridge();
+ const button=w.document.createElement('button');button.title='Download';
+ let reads=0;
+ button.addEventListener('click',()=>{
+  const blob=new w.Blob(['%PDF-1.4'],{type:'application/pdf'});
+  blob.slice=()=>{reads++;throw new Error('Direct save should not inspect document bytes');};
+  blob.arrayBuffer=()=>{reads++;throw new Error('Direct save should not copy document bytes');};
+  const link=w.document.createElement('a');link.href=w.URL.createObjectURL(blob);
+  link.download='FALLSEM2026-27_VL_BCSE355L_00200_TH_2026-11-05_Module-8.pdf';
+  link.click();w.URL.revokeObjectURL(link.href);
+ });
+ w.document.body.append(button);
+ button.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));
+ assert.equal(downloads[0]?.name,'Module-8.pdf');
+ assert.equal(reads,0);assert.equal(calls.length,0);assert.equal(messages.length,0);
+ dom.window.close();
+});
