@@ -477,3 +477,21 @@ test('POST downloads retain the clicked document label and send the request once
  assert.equal(page.calls.length,1);assert.equal(page.calls[0].init.method,'POST');
  assert.equal(page.messages.find(m=>m.kind==='ready')?.filename,'Semester Notes.pdf');page.dom.window.close();
 });
+
+test('VTOP course filenames use the suffix after the last underscore',async()=>{
+ for(const type of ['pdf','pptx','ppt','docx','doc']){
+  for(const direct of [false,true]){
+   const page=bridge({body:type==='pdf'?'%PDF-1.4':'Office bytes',type:'application/octet-stream',disposition:`attachment; filename="FALLSEM2026-27_VL_BCSE355L_00200_TH_2026-11-05_Module-8.${type}"`});
+   const link=page.w.document.createElement('a');link.href='/vtop/download/file';
+   link.textContent='Cloud Architecture Notes';page.w.document.body.append(link);
+   link.dispatchEvent(new page.w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:direct}));await pause();
+   assert.equal(direct?page.downloads[0]?.name:page.messages.find(m=>m.kind==='ready')?.filename,`Module-8.${type}`);
+   page.dom.window.close();
+  }
+ }
+});
+test('extensionless VTOP PDF filenames retain the final suffix and gain a PDF extension',async()=>{
+ const page=bridge({disposition:'attachment; filename="FALLSEM2026-27_VL_BCSE355L_00200_TH_2026-11-05_Module-8"'});
+ page.w.open('/vtop/download/file');await pause();
+ assert.equal(page.messages.find(m=>m.kind==='ready')?.filename,'Module-8.pdf');page.dom.window.close();
+});

@@ -37,9 +37,11 @@
   }
   function pendingDownload() {return downloadIntent && Date.now()-downloadIntent.time<10000;}
   const genericName = (value: string) => /^(?:(?:download|view|open)(?:\s+(?:as\s+)?(?:pdf|file|document))?|file|pdf|document|question paper)$/i.test(value.trim());
+  const vtopFilename = /^(?:FALL|WINTER|SUMMER|SPRING)SEM\d{4}-\d{2,4}_[A-Z]{2,4}_[A-Z]{2,}\d+[A-Z]?_/i;
   function opaqueFilename(value: string) {
     const stem = value.replace(/\.[^.]+$/, '');
-    return /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(stem) ||
+    return vtopFilename.test(stem) ||
+      /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(stem) ||
       /^[a-f0-9]{16,}$/i.test(stem) ||
       /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[A-Za-z0-9_-]{6,}$/.test(stem);
   }
@@ -147,11 +149,13 @@
       const isLegacyPpt = /application\/vnd\.ms-powerpoint/i.test(contentType) || /\.ppt$/i.test(typeName);
       const isDocx = /application\/vnd\.openxmlformats-officedocument\.wordprocessingml\.document/i.test(contentType) || /\.docx$/i.test(typeName);
       const isLegacyDoc = /application\/msword/i.test(contentType) || /\.doc$/i.test(typeName);
+      // Course Page names encode semester/course/date before the final document name.
+      const documentSuffix = vtopFilename.test(name) ? name.slice(name.lastIndexOf('_') + 1) : undefined;
       let previewName = name;
       if ((isPdf || isPptx || isLegacyPpt || isDocx || isLegacyDoc) && opaqueFilename(name)) {
         const title = isPdf ? await pdfTitle(blob) : undefined;
         previewName = title && !genericName(title) ? title : suggestedName || 'VTOP document';
-        name = linkedName || descriptiveName(title) || 'VTOP document';
+        name = documentSuffix || linkedName || descriptiveName(title) || 'VTOP document';
       }
       name = filename(null, name);
       previewName = filename(null, previewName);
