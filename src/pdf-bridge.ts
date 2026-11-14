@@ -30,7 +30,7 @@
   let sequence = 0;
   let bypassClick = false;
   let bypassTimer: ReturnType<typeof setTimeout> | undefined;
-  let downloadIntent: { time: number; name?: string } | null = null;
+  let downloadIntent: { time: number; name?: string; saveOnly?: boolean } | null = null;
   const downloadHint = (value: string) => /\b(?:pdf|pptx?|powerpoint|presentation|slides?)\b|download|dwnld|curriculdown/i.test(value || '');
   function localURL(value: URLInput) {
     try {const url=new URL(value as string | URL,document.baseURI);return url.origin===location.origin&&url.pathname.startsWith('/vtop/');} catch {return false;}
@@ -128,7 +128,8 @@
     document.documentElement.append(anchor); originalClick.call(anchor); anchor.remove();
     setTimeout(() => { nativeURLs.delete(url); revokeURL(url); },60000);
   }
-  async function preview(url: string, init?: RequestInit, suggestedName?: string, fallback?: () => void, source?: Blob, saveOnly = false) {
+  async function preview(url: string, init?: RequestInit, suggestedName?: string, fallback?: () => void, source?: Blob, saveOnly = !!(pendingDownload() && downloadIntent?.saveOnly)) {
+    const intentName = pendingDownload() ? downloadIntent?.name : undefined;
     downloadIntent=null;
     const id = `pdf-${Date.now()}-${++sequence}`;
     if (!saveOnly) emit('loading',id);
@@ -143,7 +144,7 @@
       let pathName = '';
       try { pathName = decodeURIComponent(new URL(url, document.baseURI).pathname.split('/').pop()!); } catch {}
       let name = filename(contentDisposition, suggestedName || pathName || (isPdf ? 'document' : 'download'));
-      const linkedName = descriptiveName(suggestedName) || descriptiveName(linkFilename(url));
+      const linkedName = descriptiveName(suggestedName) || descriptiveName(intentName) || descriptiveName(linkFilename(url));
       const typeName = [name, linkedName, pathName].find(value => value && /\.(?:pptx?|docx?)$/i.test(value)) || '';
       const isPptx = /application\/vnd\.openxmlformats-officedocument\.presentationml\.presentation/i.test(contentType) || /\.pptx$/i.test(typeName);
       const isLegacyPpt = /application\/vnd\.ms-powerpoint/i.test(contentType) || /\.ppt$/i.test(typeName);
@@ -165,7 +166,7 @@
       else if (isDocx) { name = fileNameWithExtension(name, 'docx'); previewName = fileNameWithExtension(previewName, 'docx'); }
       else if (isLegacyDoc) { name = fileNameWithExtension(name, 'doc'); previewName = fileNameWithExtension(previewName, 'doc'); }
       if (!isPdf && /text\/html|application\/json/i.test(contentType)) {
-        if (fallback && /text\/html/i.test(contentType)) { emit('not-pdf',id); fallback(); return; }
+        if (fallback && !saveOnly && /text\/html/i.test(contentType)) { emit('not-pdf',id); fallback(); return; }
         throw new Error('VTOP returned a page instead of a document. Sign in again and retry.');
       }
       if (saveOnly) { download(blob,name); return; }
@@ -182,7 +183,7 @@
       const bytes = await blob.arrayBuffer();
       emit('ready',id,{bytes,filename:name,previewName,documentType:'pdf'});
     } catch (error) {
-      if (fallback) { emit('not-pdf',id); fallback(); return; }
+      if (fallback && !saveOnly) { emit('not-pdf',id); fallback(); return; }
       if (saveOnly) emit('loading',id);
       emit('error',id,{message:(error as Error).message || 'Unable to preview this document.'});
     }
@@ -202,7 +203,7 @@
     const fallback = () => {
       bypassPreview(); originalClick.call(anchor);
     };
-    preview(url,undefined,contextFilename(anchor) || (pendingDownload() ? downloadIntent?.name : undefined),fallback,pdfBlobs.get(url)); return true;
+    preview(url,undefined,(vtopFilename.test(anchor.download) ? anchor.download : contextFilename(anchor)) || (pendingDownload() ? downloadIntent?.name : undefined),fallback,pdfBlobs.get(url)); return true;
   }
   function downloadAnchor(anchor: HTMLAnchorElement) {
     const rawHref=anchor.getAttribute('href')||'';
@@ -212,7 +213,7 @@
     const isDataPdf=/^data:application\/pdf(?:[;,])/i.test(url);
     const explicitFile=localURL(url)&&(anchor.hasAttribute('download')||anchor.type==='application/pdf'||downloadHint(controlHint(anchor)));
     if(!candidate(url)&&!isBlob&&!isDataPdf&&!explicitFile)return false;
-    void preview(url,undefined,contextFilename(anchor),undefined,pdfBlobs.get(url),true); return true;
+    void preview(url,undefined,(vtopFilename.test(anchor.download) ? anchor.download : contextFilename(anchor)),undefined,pdfBlobs.get(url),true); return true;
   }
   // Some download helpers open opaque endpoints, so a recent download-labelled control is the only
   // safe signal for those. `_csrf` appears on ordinary VTOP popups too and must not be used alone.
@@ -247,12 +248,18 @@
       }
       return;
     }
+    const control=(event.target as Partial<Element>).closest?.('button,a,input[type="button"],input[type="submit"],[role="button"]');
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
       const anchor=(event.target as Partial<Element>).closest?.<HTMLAnchorElement>('a[href]');
       if (anchor && downloadAnchor(anchor)) { event.preventDefault(); event.stopImmediatePropagation(); return; }
+      if (event.shiftKey && control && downloadHint(controlHint(control)) &&
+          !control.matches('.systemB5BtnMenu,.systemBtnMenu,.quickB5MainMenu,[data-bs-toggle]')) {
+        clearTimeout(bypassTimer);bypassClick=false;
+        downloadIntent={time:Date.now(),name:contextFilename(control),saveOnly:true};
+        return;
+      }
       downloadIntent=null;bypassPreview();return;
     }
-    const control=(event.target as Partial<Element>).closest?.('button,a,input[type="button"],input[type="submit"],[role="button"]');
     // Keep the surrounding document label even when VTOP opens an opaque download endpoint rather than
     // exposing a descriptive URL. It is only used if the server itself returns a generated filename.
     // Only a control that actually signals a document download can make a following opaque popup

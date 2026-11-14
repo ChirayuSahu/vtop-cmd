@@ -267,9 +267,9 @@ test('PDF download attributes on opaque URLs, data URLs and dwnld endpoints open
   const {dom,w,messages}=bridge();const link=w.document.createElement('a');link.href=href;link.download='Course.pdf';link.click();await pause();assert.ok(messages.some(message=>message.kind==='ready'),href);dom.window.close();
  }
 });
-test('Shift-click bypass also preserves original programmatic PDF form submission',()=>{
+test('Shift-click saves programmatic PDF form downloads with one POST',async()=>{
  const {dom,w,calls}=bridge();const form=w.document.createElement('form');form.id='curriculumDownloadForm';form.method='post';form.action='academics/curriculDown/';
- const button=w.document.createElement('button');button.textContent='Download Curriculum as PDF';button.addEventListener('click',()=>form.submit());w.document.body.append(form,button);button.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));assert.equal(calls.length,1);assert.equal(calls[0].native,true);dom.window.close();
+ const button=w.document.createElement('button');button.textContent='Download Curriculum as PDF';button.addEventListener('click',()=>form.submit());w.document.body.append(form,button);button.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));await pause();assert.equal(calls.length,1);assert.equal(calls[0].init.method,'POST');dom.window.close();
 });
 test('download-labelled navigation entries stay native instead of fetching the current page as a PDF',async()=>{
  const {dom,w,calls}=bridge();let navigations=0;
@@ -494,4 +494,27 @@ test('extensionless VTOP PDF filenames retain the final suffix and gain a PDF ex
  const page=bridge({disposition:'attachment; filename="FALLSEM2026-27_VL_BCSE355L_00200_TH_2026-11-05_Module-8"'});
  page.w.open('/vtop/download/file');await pause();
  assert.equal(page.messages.find(m=>m.kind==='ready')?.filename,'Module-8.pdf');page.dom.window.close();
+});
+
+test('Shift-clicking an icon button saves a delayed revoked blob with its course filename suffix',async()=>{
+ const {dom,w,downloads,messages}=bridge();
+ const button=w.document.createElement('button');button.innerHTML='<i class="bi bi-download"></i>';
+ button.addEventListener('click',()=>setTimeout(()=>{
+  const link=w.document.createElement('a');
+  link.href=w.URL.createObjectURL(new w.Blob(['%PDF-1.4']));
+  link.download='FALLSEM2026-27_VL_BCSE355L_00200_TH_2026-11-05_Module-8.pdf';
+  link.click();w.URL.revokeObjectURL(link.href);
+ },5));
+ w.document.body.append(button);
+ button.firstChild.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));await pause();
+ assert.equal(downloads.length,1);assert.equal(downloads[0].name,'Module-8.pdf');
+ assert.equal(messages.some(m=>m.kind==='loading'||m.kind==='ready'),false);dom.window.close();
+});
+test('Shift-clicking a download button saves a popup response directly',async()=>{
+ const {dom,w,downloads,messages,opens}=bridge({disposition:'attachment; filename="FALLSEM2026-27_VL_BCSE355L_00200_TH_2026-11-05_Module-8.pdf"'});
+ const button=w.document.createElement('button');button.title='Download';
+ button.addEventListener('click',()=>w.open('/vtop/download/file'));w.document.body.append(button);
+ button.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));await pause();
+ assert.equal(downloads[0]?.name,'Module-8.pdf');assert.equal(opens.length,0);
+ assert.equal(messages.some(m=>m.kind==='loading'||m.kind==='ready'),false);dom.window.close();
 });
