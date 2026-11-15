@@ -38,8 +38,9 @@
   let activeId: string|null|undefined,blobURL: string|null|undefined,previousFocus: (Element & HTMLOrSVGElement)|null|undefined,nonce: string|undefined,bytes: ArrayBuffer|null|undefined,filename: string|undefined,documentType: string|undefined,frame: HTMLIFrameElement|null|undefined,received: boolean|undefined,watchdog: ReturnType<typeof setTimeout>|undefined,theme:VtopTheme='light';
   const validTheme=(value:unknown):value is VtopTheme=>['light','dark','oled','blue'].includes(String(value));
   function downloadName(value: unknown, type: string) {
-    let name=String(value||'document').replace(/[\\/\x00-\x1f]/g,'_').trim().slice(0,180);
+    let name=String(value||'document');
     try { if (/%[0-9a-f]{2}/i.test(name)) name=decodeURIComponent(name); } catch {}
+    name=name.replace(/[\\/<>:"|?*\x00-\x1f\x7f]/g,'_').trim().replace(/[. ]+$/,'').slice(0,180);
     const extension=type==='pptx'?'.pptx':type==='ppt'?'.ppt':type==='docx'?'.docx':type==='doc'?'.doc':type==='unsupported'?'':'.pdf';
     if (!extension) return name || 'document';
     return new RegExp(`\\${extension}$`,'i').test(name) ? name : `${name.replace(/\.[a-z0-9]{1,5}$/i,'')||'document'}${extension}`;
