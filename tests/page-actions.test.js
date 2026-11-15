@@ -85,3 +85,21 @@ test('a multiple select takes a list of enabled options, keeps disabled choices,
  assert.equal(await w.VtopPageActions.change(semester,['S1']),false,'a single select takes one value, not a list');assert.equal(semester.value,'');assert.equal(semesterChanges,0);
  assert.equal(submits,0);dom.window.close();
 });
+test('binary downloads keep their original response stream without a duplicate reader',async()=>{
+ const dom=new JSDOM('<html><body></body></html>',{runScripts:'outside-only',url:'https://vtop.vit.ac.in/vtop/content'}),w=dom.window;
+ for(const type of ['application/octet-stream','application/pdf','application/vnd.openxmlformats-officedocument.presentationml.presentation']){
+  let cloned=0;
+  const body=new ReadableStream({start(controller){controller.enqueue(new Uint8Array([1,2,3]));controller.close();}});
+  const response=new Response(body,{headers:{'Content-Type':type}});
+  response.clone=()=>{cloned++;throw new Error('A document stream must have only its native consumer');};
+  if(!w.__nativeResponse){
+   w.fetch=async()=>w.__nativeResponse;
+   w.eval(fs.readFileSync(__dirname+'/../build/page-runtime.js','utf8'));
+  }
+  w.__nativeResponse=response;
+  const result=await w.fetch('/vtop/download/document');
+  assert.equal(result,response);assert.equal(cloned,0);
+  assert.deepEqual([...new Uint8Array(await result.arrayBuffer())],[1,2,3]);
+ }
+ dom.window.close();
+});

@@ -206,6 +206,19 @@
     const isDataPdf=/^data:application\/pdf(?:[;,])/i.test(url);
     const explicitFile=localURL(url)&&(anchor.hasAttribute('download')||anchor.type==='application/pdf'||downloadHint(controlHint(anchor)));
     if (!candidate(url) && !isBlob && !isDataPdf && !explicitFile) return false;
+    // VTOP has already received this file and is about to save its own blob URL.
+    // Rename that link in place for Shift-click instead of starting another save.
+    const sourceName=filename(null,anchor.download);
+    if (isBlob && pendingDownload() && downloadIntent?.saveOnly && vtopFilename.test(sourceName) &&
+        /\.(?:pdf|pptx?|docx?)$/i.test(sourceName) && !/text\/html|application\/json/i.test(pdfBlobs.get(url)?.type || '')) {
+      const suffix=sourceName.slice(sourceName.lastIndexOf('_')+1);
+      if (suffix.replace(/\.[^.]+$/,'').trim()) {
+        downloadIntent=null;
+        anchor.download=suffix;anchor.dataset.vtopPdfBypass='true';
+        nativeURLs.add(url);setTimeout(()=>nativeURLs.delete(url),10000);
+        originalClick.call(anchor);return true;
+      }
+    }
     // Some VTOP handlers rely on browser navigation semantics that a fetch cannot reproduce. If previewing
     // fails, replay the original anchor click once with this bridge bypassed so the browser can still download it.
     const fallback = () => {

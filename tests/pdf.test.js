@@ -536,3 +536,17 @@ test('Shift-click saves an already-downloaded course blob without reading it aga
  assert.equal(reads,0);assert.equal(calls.length,0);assert.equal(messages.length,0);
  dom.window.close();
 });
+test('Shift-click reuses the original completed course download URL',()=>{
+ const {dom,w,downloads}=bridge();let url;
+ const button=w.document.createElement('button');button.title='Download Material';
+ button.addEventListener('click',()=>{
+  const link=w.document.createElement('a');
+  url=w.URL.createObjectURL(new w.Blob(['%PDF-1.4'],{type:'application/pdf'}));
+  link.href=url;link.download='FALLSEM2026-27_VL_BCSE355L_00200_TH_2026-11-05_Module-8.pdf';
+  link.click();w.URL.revokeObjectURL(url);
+ });
+ w.document.body.append(button);
+ button.dispatchEvent(new w.MouseEvent('click',{bubbles:true,cancelable:true,shiftKey:true}));
+ assert.deepEqual(downloads,[{href:url,name:'Module-8.pdf'}]);
+ dom.window.close();
+});

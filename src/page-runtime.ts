@@ -9,8 +9,11 @@
   const begin=()=>{requests++;state();};
   const end=()=>{requests=Math.max(0,requests-1);state();};
   if(window.fetch){const native=window.fetch;window.fetch=function(...args){begin();try{return Promise.resolve(native.apply(this,args)).then(response=>{
-    // fetch resolves at headers; keep the gate closed until the body has arrived too.
-    if(typeof response.clone==='function'&&response.body){
+    // Document downloads do not replace page controls. Leave their stream to VTOP's
+    // progress reader instead of cloning and draining a second copy of the file.
+    const documentResponse = /^(?:application\/(?:pdf|octet-stream|msword|vnd\.ms-powerpoint|vnd\.openxmlformats-officedocument\.))/i.test(response.headers?.get('content-type') || '');
+    // For page fragments, keep the gate closed until the body has arrived too.
+    if(!documentResponse&&typeof response.clone==='function'&&response.body){
       try{
         // A streaming or long-held response must not keep the page "busy" forever: give up waiting after 20 s.
         const reader=response.clone().body!.getReader();let ended=false;const finish=()=>{if(!ended){ended=true;end();}};const cap=setTimeout(finish,20000);
