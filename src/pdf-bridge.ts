@@ -30,12 +30,39 @@
   let sequence = 0;
   let bypassClick = false;
   let bypassTimer: ReturnType<typeof setTimeout> | undefined;
-  let downloadIntent: { time: number; name?: string; saveOnly?: boolean } | null = null;
+  let downloadIntent: { time: number; name?: string; materialName?: string; saveOnly?: boolean } | null = null;
+  let materialAction: 'preview' | 'download' | undefined;
   const downloadHint = (value: string) => /\b(?:pdf|pptx?|powerpoint|presentation|slides?)\b|download|dwnld|curriculdown/i.test(value || '');
   function localURL(value: URLInput) {
     try {const url=new URL(value as string | URL,document.baseURI);return url.origin===location.origin&&url.pathname.startsWith('/vtop/');} catch {return false;}
   }
   function pendingDownload() {return downloadIntent && Date.now()-downloadIntent.time<10000;}
+  const cleanText = (value: string | null) => (value || '').replace(/\s+/g,' ').trim();
+  function materialHeader(table: HTMLTableElement) {
+    return [...table.rows].find(row => [...row.cells].some(cell => /^material\s+detail$/i.test(cleanText(cell.textContent))) &&
+      [...row.cells].some(cell => /^course\s+detail$/i.test(cleanText(cell.textContent))));
+  }
+  function materialContext(control: Element | null | undefined, knownHeader?: HTMLTableRowElement) {
+    const row = control?.closest('tr'), table = row?.closest('table');
+    if (!row || !table) return;
+    // VTOP also uses tbody/td for header rows, rather than always thead/th.
+    const header = knownHeader || materialHeader(table);
+    if (!header || header === row) return;
+    const cells = [...header.cells];
+    const material = row.cells[cells.findIndex(cell => /^material\s+detail$/i.test(cleanText(cell.textContent)))];
+    const action = row.cells[cells.findIndex(cell => /^(?:download|actions?)$/i.test(cleanText(cell.textContent)))];
+    if (!material || !action) return;
+    // The lines below the title contain the module number and '(Document)'.
+    const range = document.createRange(); range.selectNodeContents(material);
+    const lineBreak = material.querySelector('br'); if (lineBreak) range.setEndBefore(lineBreak);
+    const title = cleanText(range.toString());
+    return title ? { title: filename(null,title), action } : undefined;
+  }
+  function materialFilename(title: string, original: string) {
+    const extension = original.match(/\.[a-z0-9]{1,10}$/i)?.[0] || '';
+    if (!extension || title.toLowerCase().endsWith(extension.toLowerCase())) return title;
+    return title.replace(/\.(?:pdf|pptx?|docx?)$/i,'') + extension;
+  }
   const genericName = (value: string) => /^(?:(?:download|view|open)(?:\s+(?:as\s+)?(?:pdf|file|document))?|file|pdf|document|question paper)$/i.test(value.trim());
   const vtopFilename = /^(?:FALL|WINTER|SUMMER|SPRING)SEM\d{4}-\d{2,4}_[A-Z]{2,4}_[A-Z]{2,}\d+[A-Z]?_/i;
   function opaqueFilename(value: string) {
@@ -130,6 +157,7 @@
   }
   async function preview(url: string, init?: RequestInit, suggestedName?: string, fallback?: () => void, source?: Blob, saveOnly = !!(pendingDownload() && downloadIntent?.saveOnly)) {
     const intentName = pendingDownload() ? downloadIntent?.name : undefined;
+    const materialName = pendingDownload() ? downloadIntent?.materialName : undefined;
     downloadIntent=null;
     const id = `pdf-${Date.now()}-${++sequence}`;
     if (!saveOnly) emit('loading',id);
@@ -140,7 +168,7 @@
       if (saveOnly && source && vtopFilename.test(sourceName) &&
           /\.(?:pdf|pptx?|docx?)$/i.test(sourceName) && !/text\/html|application\/json/i.test(source.type)) {
         const suffix = sourceName.slice(sourceName.lastIndexOf('_') + 1);
-        if (suffix.replace(/\.[^.]+$/, '').trim()) { download(source, suffix); return; }
+        if (suffix.replace(/\.[^.]+$/, '').trim()) { download(source, materialName ? materialFilename(materialName,sourceName) : suffix); return; }
       }
       const response = source ? null : await nativeFetch(url,{credentials:'same-origin',...init});
       if (response && !response.ok) throw new Error('The document could not be loaded. Your VTOP session may have expired.');
@@ -173,6 +201,7 @@
       else if (isLegacyPpt) { name = fileNameWithExtension(name, 'ppt'); previewName = fileNameWithExtension(previewName, 'ppt'); }
       else if (isDocx) { name = fileNameWithExtension(name, 'docx'); previewName = fileNameWithExtension(previewName, 'docx'); }
       else if (isLegacyDoc) { name = fileNameWithExtension(name, 'doc'); previewName = fileNameWithExtension(previewName, 'doc'); }
+      if (materialName) { name = materialFilename(materialName,name); previewName = name; }
       if (!isPdf && /text\/html|application\/json/i.test(contentType)) {
         if (fallback && !saveOnly && /text\/html/i.test(contentType)) { emit('not-pdf',id); fallback(); return; }
         throw new Error('VTOP returned a page instead of a document. Sign in again and retry.');
@@ -206,6 +235,8 @@
     const isDataPdf=/^data:application\/pdf(?:[;,])/i.test(url);
     const explicitFile=localURL(url)&&(anchor.hasAttribute('download')||anchor.type==='application/pdf'||downloadHint(controlHint(anchor)));
     if (!candidate(url) && !isBlob && !isDataPdf && !explicitFile) return false;
+    const material = materialContext(anchor);
+    if (material) downloadIntent = {time:Date.now(),...downloadIntent,materialName:material.title};
     // VTOP has already received this file and is about to save its own blob URL.
     // Rename that link in place for Shift-click instead of starting another save.
     const sourceName=filename(null,anchor.download);
@@ -213,8 +244,9 @@
         /\.(?:pdf|pptx?|docx?)$/i.test(sourceName) && !/text\/html|application\/json/i.test(pdfBlobs.get(url)?.type || '')) {
       const suffix=sourceName.slice(sourceName.lastIndexOf('_')+1);
       if (suffix.replace(/\.[^.]+$/,'').trim()) {
+        const materialName=downloadIntent.materialName;
         downloadIntent=null;
-        anchor.download=suffix;anchor.dataset.vtopPdfBypass='true';
+        anchor.download=materialName ? materialFilename(materialName,sourceName) : suffix;anchor.dataset.vtopPdfBypass='true';
         nativeURLs.add(url);setTimeout(()=>nativeURLs.delete(url),10000);
         originalClick.call(anchor);return true;
       }
@@ -234,6 +266,8 @@
     const isDataPdf=/^data:application\/pdf(?:[;,])/i.test(url);
     const explicitFile=localURL(url)&&(anchor.hasAttribute('download')||anchor.type==='application/pdf'||downloadHint(controlHint(anchor)));
     if(!candidate(url)&&!isBlob&&!isDataPdf&&!explicitFile)return false;
+    const material=materialContext(anchor);
+    if(material)downloadIntent={time:Date.now(),materialName:material.title,saveOnly:true};
     void preview(url,undefined,(vtopFilename.test(anchor.download) ? anchor.download : contextFilename(anchor)),undefined,pdfBlobs.get(url),true); return true;
   }
   // Some download helpers open opaque endpoints, so a recent download-labelled control is the only
@@ -276,7 +310,7 @@
       if (event.shiftKey && control && downloadHint(controlHint(control)) &&
           !control.matches('.systemB5BtnMenu,.systemBtnMenu,.quickB5MainMenu,[data-bs-toggle]')) {
         clearTimeout(bypassTimer);bypassClick=false;
-        downloadIntent={time:Date.now(),name:contextFilename(control),saveOnly:true};
+        downloadIntent={time:Date.now(),name:contextFilename(control),materialName:materialContext(control)?.title,saveOnly:true};
         return;
       }
       downloadIntent=null;bypassPreview();return;
@@ -286,7 +320,8 @@
     // Only a control that actually signals a document download can make a following opaque popup
     // previewable. Remembering every click misclassified ordinary VTOP popups (for example Student
     // Login) as downloads for ten seconds.
-    downloadIntent=control&&downloadHint(controlHint(control))?{time:Date.now(),name:contextFilename(control)}:null;
+    const material=materialContext(control);
+    downloadIntent=control&&(downloadHint(controlHint(control))||material)?{time:Date.now(),name:contextFilename(control),materialName:material?.title,saveOnly:materialAction==='download'}:null;
     if (event.defaultPrevented || event.button !== 0) return;
     const anchor = (event.target as Partial<Element>).closest?.<HTMLAnchorElement>('a[href]');
     if (anchor && handleAnchor(anchor)) { event.preventDefault(); event.stopImmediatePropagation(); }
@@ -330,4 +365,56 @@
   document.addEventListener('submit',event=>{
     if (!event.defaultPrevented && handleForm(event.target as HTMLFormElement,event.submitter as HTMLButtonElement | HTMLInputElement | null)) {event.preventDefault();event.stopImmediatePropagation();}
   },true);
+
+  // Keep VTOP's original control (and its authenticated AJAX/POST handler) in place.
+  // Both visible actions invoke it once; the bridge chooses preview or save above.
+  const materialControls = new WeakMap<HTMLElement, HTMLSpanElement>();
+  function scanMaterials() {
+    for (const table of document.querySelectorAll('table')) {
+      const header = materialHeader(table); if (!header) continue;
+      for (const row of table.rows) {
+        const material = materialContext(row,header);
+        if (!material) continue;
+        const native = material.action.querySelector<HTMLElement>('a,button,input[type="button"],input[type="submit"],[role="button"],[onclick]');
+        if (!native || native.closest('[data-vtop-material-actions]')) continue;
+        let actions = materialControls.get(native);
+        if (!actions) {
+          for (const stale of material.action.querySelectorAll('[data-vtop-material-actions]')) stale.remove();
+          actions = document.createElement('span'); actions.dataset.vtopMaterialActions = 'true';
+          actions.setAttribute('role','group'); actions.setAttribute('aria-label','Course material actions');
+          for (const action of ['preview','download'] as const) {
+            const button = document.createElement('button'); button.type = 'button';
+            button.textContent = action === 'preview' ? 'Preview' : 'Download';
+            button.addEventListener('click',event => {
+              event.preventDefault(); event.stopPropagation();
+              const current = materialContext(native); if (!current) return;
+              clearTimeout(bypassTimer); bypassClick = false;
+              materialAction = action;
+              downloadIntent = {time:Date.now(),materialName:current.title,saveOnly:action==='download'};
+              try { native.click(); } finally { materialAction = undefined; }
+            });
+            actions.append(button);
+          }
+          native.setAttribute('data-vtop-material-original','true');
+          materialControls.set(native,actions);
+        }
+        if (actions.parentElement !== material.action) native.after(actions);
+      }
+    }
+    if (document.querySelector('[data-vtop-material-actions]') && !document.getElementById('vtop-material-actions-style')) {
+      const style = document.createElement('style'); style.id = 'vtop-material-actions-style';
+      style.textContent = `[data-vtop-material-original]{display:none!important}
+        [data-vtop-material-actions]{display:inline-flex;flex-wrap:wrap;gap:8px;align-items:center}
+        [data-vtop-material-actions] button{font:inherit;font-size:12px;min-height:32px;padding:5px 9px;border:1px solid currentColor;border-radius:6px;color:inherit;background:transparent;cursor:pointer;white-space:nowrap}
+        [data-vtop-material-actions] button:hover{ text-decoration:underline }
+        [data-vtop-material-actions] button:focus-visible{outline:2px solid currentColor;outline-offset:2px}`;
+      document.documentElement.append(style);
+    }
+  }
+  let materialScan: ReturnType<typeof setTimeout> | undefined;
+  new MutationObserver(() => {
+    if (materialScan !== undefined) return;
+    materialScan = setTimeout(() => { materialScan = undefined; scanMaterials(); },50);
+  }).observe(document,{childList:true,subtree:true,characterData:true});
+  scanMaterials();
 })();
