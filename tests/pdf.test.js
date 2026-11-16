@@ -551,17 +551,25 @@ test('Shift-click reuses the original completed course download URL',()=>{
  dom.window.close();
 });
 
-async function courseMaterial(page,{title='m1 - intro',header='thead',native='button'}={}){
+const materialButtons=host=>[...host.shadowRoot.querySelectorAll('button')];
+async function courseMaterial(page,{title='m1 - intro',header='thead',native='button',settings={}}={}){
  const {w}=page;
  w.document.body.innerHTML=`<table><${header}><tr><th>#</th><th>Course Detail</th><th>Material Detail</th><th>Uploaded By</th><th>Download</th></tr></${header}><tbody><tr><td>12</td><td>Fall Semester 2026-27<br>BITE314L - Multimedia Systems - TH</td><td class="material"><span></span><br><i>1</i> <span>(Document)</span></td><td>19725 - Faculty<br>21-07-2026</td><td class="action">${native==='button'?'<button type="button"><i class="bi bi-download"></i></button>':'<a href="/vtop/download/file"><i class="bi bi-download"></i></a>'}</td></tr></tbody></table>`;
  w.document.querySelector('.material span').textContent=title;
  const original=w.document.querySelector('.action').firstChild;
  if(native==='button')original.addEventListener('click',()=>w.open('/vtop/download/file'));
- await new Promise(resolve=>setTimeout(resolve,80));
+ if(!page.materialUI){
+  page.materialUI=true;page.materialListeners=[];
+  w.chrome={storage:{local:{get:async()=>settings},onChanged:{addListener:listener=>page.materialListeners.push(listener)}}};
+  for(const file of ['brand','semesters','enhancements','page-enhancements'])w.eval(fs.readFileSync(__dirname+`/../build/${file}.js`,'utf8'));
+ }
+ await new Promise(resolve=>setTimeout(resolve,200));
  const actions=w.document.querySelector('[data-vtop-material-actions]');
- assert.ok(actions);assert.deepEqual([...actions.children].map(button=>button.textContent),['Preview','Download']);
+ assert.ok(actions);const buttons=materialButtons(actions);
+ assert.deepEqual(buttons.map(button=>button.textContent),['Preview','Download']);
+ assert.deepEqual(buttons.map(button=>button.getAttribute('aria-label')),[`Preview ${title}`,`Download ${title}`]);
  assert.equal(original.dataset.vtopMaterialOriginal,'true');
- return{original,actions,preview:actions.children[0],download:actions.children[1]};
+ return{original,actions,preview:buttons[0],download:buttons[1]};
 }
 
 test('course material actions use Material Detail for direct and preview downloads across file types',async()=>{
@@ -570,6 +578,7 @@ test('course material actions use Material Detail for direct and preview downloa
    const page=bridge({body:type==='pdf'?'%PDF-1.4 /Title (Unrelated PDF title)':'file bytes',type:'application/octet-stream',disposition:`attachment; filename="Original Notes.${type}"`});
    const controls=await courseMaterial(page,{header:direct?'tbody':'thead'});
    (direct?controls.download:controls.preview).click();await pause();
+   assert.equal(controls.original.hasAttribute('data-vtop-material-action'),false);
    assert.equal(page.calls.length,1);assert.equal(page.opens.length,0);
    if(direct||type==='zip'){
     assert.equal(page.downloads[0]?.name,`m1 - intro.${type}`);
@@ -609,10 +618,10 @@ test('material titles override the fast save path for delayed revoked VTOP blobs
   anchor.download='FALLSEM2026-27_VL_BCSE355L_00200_TH_2026-11-05_Module-8.pdf';
   anchor.click();page.w.URL.revokeObjectURL(blobUrl);
  },5));
- await new Promise(resolve=>setTimeout(resolve,80));
+ await new Promise(resolve=>setTimeout(resolve,200));
  // The replacement row gets a fresh pair bound to the new original control.
  assert.equal(page.w.document.querySelectorAll('[data-vtop-material-actions]').length,1);
- page.w.document.querySelector('[data-vtop-material-actions]').children[1].click();await pause();
+ materialButtons(page.w.document.querySelector('[data-vtop-material-actions]'))[1].click();await pause();
  assert.deepEqual(page.downloads,[{href:blobUrl,name:'m1 - intro.pdf'}]);
  assert.equal(reads,0);assert.equal(page.calls.length,0);assert.equal(page.messages.length,0);page.dom.window.close();
 });
@@ -620,18 +629,19 @@ test('material titles override the fast save path for delayed revoked VTOP blobs
 test('material controls stay unique after redraws and use the current title',async()=>{
  const page=bridge(),controls=await courseMaterial(page);
  page.w.document.querySelector('.material span').textContent='audio';
- await new Promise(resolve=>setTimeout(resolve,80));
+ await new Promise(resolve=>setTimeout(resolve,200));
  assert.equal(page.w.document.querySelectorAll('[data-vtop-material-actions]').length,1);
  controls.download.click();await pause();assert.equal(page.downloads[0]?.name,'audio.pdf');
  await courseMaterial(page,{title:'sound'});
  assert.equal(page.w.document.querySelectorAll('[data-vtop-material-actions]').length,1);
- page.w.document.querySelector('[data-vtop-material-actions]').children[1].click();await pause();
+ materialButtons(page.w.document.querySelector('[data-vtop-material-actions]'))[1].click();await pause();
  assert.equal(page.downloads[1]?.name,'sound.pdf');page.dom.window.close();
 });
 
 test('unrelated document tables do not gain course material actions',async()=>{
- const page=bridge();page.w.document.body.innerHTML='<table><tr><th>Document Title</th><th>Download</th></tr><tr><td>Notes</td><td><button>Download</button></td></tr></table>';
- await new Promise(resolve=>setTimeout(resolve,80));assert.equal(page.w.document.querySelector('[data-vtop-material-actions]'),null);page.dom.window.close();
+ const page=bridge();await courseMaterial(page);
+ page.w.document.body.innerHTML='<table><tr><th>Document Title</th><th>Download</th></tr><tr><td>Notes</td><td><button>Download</button></td></tr></table>';
+ await new Promise(resolve=>setTimeout(resolve,200));assert.equal(page.w.document.querySelector('[data-vtop-material-actions]'),null);page.dom.window.close();
 });
 
 test('explicit material actions honor their choice even with modifier keys',async()=>{
@@ -642,4 +652,70 @@ test('explicit material actions honor their choice even with modifier keys',asyn
   assert.equal(direct?page.downloads[0]?.name:page.messages.find(message=>message.kind==='ready')?.filename,'m1 - intro.pdf');
   page.dom.window.close();
  }
+});
+
+test('Shift-clicking Preview downloads directly for native buttons and links',async()=>{
+ for(const native of ['button','a']){
+  const page=bridge(),controls=await courseMaterial(page,{native});
+  controls.preview.dispatchEvent(new page.w.MouseEvent('click',{bubbles:true,composed:true,cancelable:true,shiftKey:true}));await pause();
+  assert.equal(page.calls.length,1);assert.equal(page.opens.length,0);
+  assert.equal(page.downloads[0]?.name,'m1 - intro.pdf');
+  assert.equal(page.messages.some(message=>message.kind==='ready'||message.kind==='loading'),false);
+  assert.equal(controls.original.hasAttribute('data-vtop-material-action'),false);page.dom.window.close();
+ }
+});
+
+test('unrelated popups in a material row never acquire download intent',async()=>{
+ const page=bridge();await courseMaterial(page);
+ const button=page.w.document.createElement('button');button.textContent='Student Login';
+ button.addEventListener('click',()=>page.w.open('/vtop/login'));
+ page.w.document.querySelector('.material').append(button);button.click();await pause();
+ assert.equal(page.calls.length,0);assert.equal(page.opens.length,1);assert.equal(page.messages.length,0);page.dom.window.close();
+});
+
+test('material buttons follow brand themes and update accessible names on DOM replacement',async()=>{
+ const page=bridge(),controls=await courseMaterial(page,{settings:{theme:'dark'}});
+ assert.equal(controls.actions.dataset.theme,'dark');
+ assert.match(controls.actions.shadowRoot.querySelector('style').textContent,/var\(--accent\)/);
+ for(const theme of ['oled','blue','light']){
+  page.materialListeners.forEach(listener=>listener({theme:{newValue:theme}},'local'));
+  assert.equal(controls.actions.dataset.theme,theme);
+ }
+ page.w.document.querySelector('.material span').textContent='audio';await new Promise(resolve=>setTimeout(resolve,200));
+ assert.equal(controls.preview.getAttribute('aria-label'),'Preview audio');
+ assert.equal(controls.download.getAttribute('aria-label'),'Download audio');page.dom.window.close();
+});
+
+test('material scans ignore character-only mutations and still handle AJAX replacements',async()=>{
+ const page=bridge(),controls=await courseMaterial(page);let reads=0;
+ const createRange=page.w.document.createRange.bind(page.w.document);
+ page.w.document.createRange=()=>{reads++;return createRange();};
+ page.w.document.querySelector('.material span').firstChild.data='audio';
+ await new Promise(resolve=>setTimeout(resolve,200));assert.equal(reads,0);
+ page.w.document.querySelector('.material span').textContent='sound';
+ await new Promise(resolve=>setTimeout(resolve,200));assert.ok(reads>0);
+ assert.equal(controls.download.getAttribute('aria-label'),'Download sound');page.dom.window.close();
+});
+
+test('native DOM clicks from the content world retain the material action',async(t)=>{
+ const page=bridge(),controls=await courseMaterial(page,{native:'a'});
+ t.after(()=>page.dom.window.close());
+ // Isolated-world click() reaches the MAIN-world document listener, without
+ // calling its patched HTMLAnchorElement.prototype.click first.
+ controls.original.click=()=>controls.original.dispatchEvent(new page.w.MouseEvent('click',{bubbles:true,cancelable:true}));
+ controls.download.click();await pause();
+ assert.equal(page.calls.length,1);assert.equal(page.downloads[0]?.name,'m1 - intro.pdf');
+ assert.equal(page.messages.some(message=>message.kind==='ready'),false);page.dom.window.close();
+});
+
+test('material POST helpers preserve authentication fields and send the request once',async(t)=>{
+ const page=bridge(),controls=await courseMaterial(page,{native:'a'}),form=page.w.document.createElement('form');
+ t.after(()=>page.dom.window.close());
+ form.method='post';form.action='/vtop/academics/renderFile';form.innerHTML='<input name="_csrf" value="test-only"><input name="materialId" value="12">';
+ page.w.document.body.append(form);controls.original.href='javascript:void(0)';
+ controls.original.click=()=>controls.original.dispatchEvent(new page.w.MouseEvent('click',{bubbles:true,cancelable:true}));
+ controls.original.addEventListener('click',()=>form.submit());controls.download.click();await pause();
+ assert.equal(page.calls.length,1);assert.equal(page.calls[0].init.method,'POST');
+ assert.equal(page.calls[0].init.body.get('_csrf'),'test-only');assert.equal(page.calls[0].init.body.get('materialId'),'12');
+ assert.equal(page.downloads[0]?.name,'m1 - intro.pdf');page.dom.window.close();
 });

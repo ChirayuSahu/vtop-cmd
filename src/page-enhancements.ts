@@ -331,15 +331,96 @@
       if(total!==table.rows[table.rows.length-1])rows.at(-1)!.parentElement!.append(total);
     }
   }
-  function scan(){scanCourses();scanAttendance();scanDeadlines();scanMarks();}
+  // Course-material UI belongs to the content script; the MAIN-world bridge only
+  // reads the short-lived action/title attributes on VTOP's original control.
+  const materialControls = new WeakMap<HTMLElement, HTMLSpanElement>(), materialHosts = new Set<HTMLSpanElement>();
+  let materialTheme: VtopTheme = 'light', materialsDirty = false;
+  function setMaterialTheme(value: unknown) {
+    materialTheme = ['light','dark','oled','blue'].includes(String(value)) ? value as VtopTheme : 'light';
+    for (const host of materialHosts) {
+      if (!host.isConnected) materialHosts.delete(host);
+      else host.dataset.theme = materialTheme;
+    }
+  }
+  function materialTitle(cell: HTMLTableCellElement | undefined) {
+    if (!cell) return '';
+    // The lines after the title hold the module number and '(Document)'.
+    const range = document.createRange(); range.selectNodeContents(cell);
+    const lineBreak = cell.querySelector('br'); if (lineBreak) range.setEndBefore(lineBreak);
+    return clean(range.toString());
+  }
+  function scanMaterials() {
+    for (const host of materialHosts) if (!host.isConnected) materialHosts.delete(host);
+    for (const table of document.querySelectorAll('table')) {
+      // Only read a table's header until we know this is Course Materials. Grade
+      // History and timetable data rows never enter the material scan.
+      const header = table.tHead?.rows[0] || table.rows[0]; if (!header) continue;
+      const titles = [...header.cells].map(cell => clean(cell.textContent));
+      const materialIndex = titles.findIndex(title => /^material\s+detail$/i.test(title));
+      const actionIndex = titles.findIndex(title => /^(?:download|actions?)$/i.test(title));
+      if (materialIndex < 0 || actionIndex < 0 || !titles.some(title => /^course\s+detail$/i.test(title))) continue;
+      for (const row of table.rows) {
+        if (row === header) continue;
+        const cell = row.cells[actionIndex], title = materialTitle(row.cells[materialIndex]);
+        const native = cell?.querySelector<HTMLElement>('a,button,input[type="button"],input[type="submit"],[role="button"],[onclick]');
+        if (!title || !native) continue;
+        let host = materialControls.get(native);
+        if (!host) {
+          for (const stale of cell.querySelectorAll('[data-vtop-material-actions]')) stale.remove();
+          host = document.createElement('span'); host.dataset.vtopMaterialActions = 'true'; host.dataset.theme = materialTheme;
+          const shadow = host.attachShadow({mode:'open'}), {tokens,font} = globalThis.VtopBrand;
+          globalThis.VtopBrand.setMarkup(shadow, `<style>
+            :host{all:initial;display:inline-block;${tokens.themes.light};font:${font};color:var(--text);color-scheme:light}
+            :host([data-theme="dark"]){${tokens.themes.dark};color-scheme:dark}
+            :host([data-theme="oled"]){${tokens.themes.oled};color-scheme:dark}
+            :host([data-theme="blue"]){${tokens.themes.blue};color-scheme:dark}
+            .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+            button{font:inherit;font-size:12px;min-height:32px;padding:5px 9px;border:1px solid var(--line);border-radius:6px;color:var(--text);background:var(--surface);cursor:pointer;white-space:nowrap}
+            button:hover{background:var(--hover)}button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+            button:disabled{opacity:.5;cursor:default}
+          </style><span class="actions" role="group" aria-label="Course material actions"><button type="button" data-action="preview">Preview</button><button type="button" data-action="download">Download</button></span>`);
+          for (const button of shadow.querySelectorAll<HTMLButtonElement>('button')) button.addEventListener('click',event => {
+            event.preventDefault(); event.stopPropagation();
+            const currentTitle = materialTitle(native.closest('tr')?.cells[materialIndex]);
+            if (!currentTitle || !native.isConnected || native.matches(':disabled,[aria-disabled="true"]')) return;
+            native.dataset.vtopMaterialTitle = currentTitle;
+            native.dataset.vtopMaterialAction = event.shiftKey ? 'download' : button.dataset.action;
+            try { native.click(); } finally { delete native.dataset.vtopMaterialAction; }
+          });
+          native.hidden = true; native.style.setProperty('display','none','important');
+          native.setAttribute('data-vtop-material-original','true');
+          materialControls.set(native,host);
+        }
+        materialHosts.add(host); host.dataset.theme = materialTheme;
+        native.dataset.vtopMaterialTitle = title;
+        for (const button of host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button')) {
+          const label = `${button.textContent} ${title}`;
+          if (button.getAttribute('aria-label') !== label) button.setAttribute('aria-label',label);
+          button.disabled = native.matches(':disabled,[aria-disabled="true"]');
+        }
+        if (host.parentElement !== cell) native.after(host);
+      }
+    }
+  }
+  function scan(){scanCourses();scanAttendance();scanDeadlines();scanMarks();if(materialsDirty){materialsDirty=false;scanMaterials();}}
   try {
-    chrome.storage.local.get('defaultSemester').then(settings=>{preference=settings.defaultSemester as VtopSemesterChoice | undefined;ready=true;scan();}).catch(()=>{ready=true;scan();});
+    chrome.storage.local.get(['defaultSemester','theme','darkMode']).then(settings=>{preference=settings.defaultSemester as VtopSemesterChoice | undefined;setMaterialTheme(settings.theme ?? (settings.darkMode===true?'blue':'light'));ready=true;scan();}).catch(()=>{ready=true;scan();});
     // A default saved in another tab applies from the next page; only a save in this tab re-filters what's on screen.
-    chrome.storage.onChanged.addListener((changes,area)=>{if(area==='local'&&changes.defaultSemester)preference=changes.defaultSemester.newValue as VtopSemesterChoice | undefined;});
+    chrome.storage.onChanged.addListener((changes,area)=>{
+      if(area!=='local')return;
+      if(changes.defaultSemester)preference=changes.defaultSemester.newValue as VtopSemesterChoice | undefined;
+      if(changes.theme)setMaterialTheme(changes.theme.newValue);
+      else if(changes.darkMode)setMaterialTheme(changes.darkMode.newValue===true?'blue':'light');
+    });
     document.addEventListener('vtop-default-semester-saved',event=>{preference=(event as CustomEvent<VtopSemesterChoice | null>).detail;scanCourses();});
   } catch {ready=true;}
-  scanAttendance();scanDeadlines();
+  scanAttendance();scanDeadlines();scanMaterials();
   let pending: ReturnType<typeof setTimeout> | undefined;
 
-  new MutationObserver(()=>{clearTimeout(pending);pending=setTimeout(scan,110);}).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['disabled','value','id','name']});
+  new MutationObserver(records=>{
+    // Other enhancements use characterData/attributes; materials only react to
+    // DOM replacements (AJAX, pagination and sorting), with no extra observer.
+    if(records.some(record=>record.type==='childList'))materialsDirty=true;
+    clearTimeout(pending);pending=setTimeout(scan,110);
+  }).observe(document.body,{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['disabled','value','id','name']});
 })();
