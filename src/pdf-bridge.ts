@@ -30,12 +30,27 @@
   let sequence = 0;
   let bypassClick = false;
   let bypassTimer: ReturnType<typeof setTimeout> | undefined;
-  let downloadIntent: { time: number; name?: string; saveOnly?: boolean } | null = null;
+  let downloadIntent: { time: number; name?: string; materialName?: string; saveOnly?: boolean } | null = null;
   const downloadHint = (value: string) => /\b(?:pdf|pptx?|powerpoint|presentation|slides?)\b|download|dwnld|curriculdown/i.test(value || '');
   function localURL(value: URLInput) {
     try {const url=new URL(value as string | URL,document.baseURI);return url.origin===location.origin&&url.pathname.startsWith('/vtop/');} catch {return false;}
   }
   function pendingDownload() {return downloadIntent && Date.now()-downloadIntent.time<10000;}
+  // The content script marks only the native control in a material's action cell,
+  // for the duration of its click. Never infer download intent from the whole row.
+  function materialIntent(control: Element | null | undefined) {
+    const action = control?.getAttribute('data-vtop-material-action');
+    const title = control?.getAttribute('data-vtop-material-title');
+    if (!title || (action !== 'preview' && action !== 'download')) return false;
+    clearTimeout(bypassTimer); bypassClick = false;
+    downloadIntent = {time:Date.now(),materialName:filename(null,title),saveOnly:action==='download'};
+    return true;
+  }
+  function materialFilename(title: string, original: string) {
+    const extension = original.match(/\.[a-z0-9]{1,10}$/i)?.[0] || '';
+    if (!extension || title.toLowerCase().endsWith(extension.toLowerCase())) return title;
+    return title.replace(/\.(?:pdf|pptx?|docx?)$/i,'') + extension;
+  }
   const genericName = (value: string) => /^(?:(?:download|view|open)(?:\s+(?:as\s+)?(?:pdf|file|document))?|file|pdf|document|question paper)$/i.test(value.trim());
   const vtopFilename = /^(?:FALL|WINTER|SUMMER|SPRING)SEM\d{4}-\d{2,4}_[A-Z]{2,4}_[A-Z]{2,}\d+[A-Z]?_/i;
   function opaqueFilename(value: string) {
@@ -130,6 +145,7 @@
   }
   async function preview(url: string, init?: RequestInit, suggestedName?: string, fallback?: () => void, source?: Blob, saveOnly = !!(pendingDownload() && downloadIntent?.saveOnly)) {
     const intentName = pendingDownload() ? downloadIntent?.name : undefined;
+    const materialName = pendingDownload() ? downloadIntent?.materialName : undefined;
     downloadIntent=null;
     const id = `pdf-${Date.now()}-${++sequence}`;
     if (!saveOnly) emit('loading',id);
@@ -140,7 +156,7 @@
       if (saveOnly && source && vtopFilename.test(sourceName) &&
           /\.(?:pdf|pptx?|docx?)$/i.test(sourceName) && !/text\/html|application\/json/i.test(source.type)) {
         const suffix = sourceName.slice(sourceName.lastIndexOf('_') + 1);
-        if (suffix.replace(/\.[^.]+$/, '').trim()) { download(source, suffix); return; }
+        if (suffix.replace(/\.[^.]+$/, '').trim()) { download(source, materialName ? materialFilename(materialName,sourceName) : suffix); return; }
       }
       const response = source ? null : await nativeFetch(url,{credentials:'same-origin',...init});
       if (response && !response.ok) throw new Error('The document could not be loaded. Your VTOP session may have expired.');
@@ -173,6 +189,7 @@
       else if (isLegacyPpt) { name = fileNameWithExtension(name, 'ppt'); previewName = fileNameWithExtension(previewName, 'ppt'); }
       else if (isDocx) { name = fileNameWithExtension(name, 'docx'); previewName = fileNameWithExtension(previewName, 'docx'); }
       else if (isLegacyDoc) { name = fileNameWithExtension(name, 'doc'); previewName = fileNameWithExtension(previewName, 'doc'); }
+      if (materialName) { name = materialFilename(materialName,name); previewName = name; }
       if (!isPdf && /text\/html|application\/json/i.test(contentType)) {
         if (fallback && !saveOnly && /text\/html/i.test(contentType)) { emit('not-pdf',id); fallback(); return; }
         throw new Error('VTOP returned a page instead of a document. Sign in again and retry.');
@@ -197,6 +214,7 @@
     }
   }
   function handleAnchor(anchor: HTMLAnchorElement) {
+    materialIntent(anchor);
     if (bypassClick || anchor.dataset.vtopPdfBypass === 'true') return false;
     const rawHref=anchor.getAttribute('href')||'';
     // Menu entries and JavaScript helpers must run their native handlers first.
@@ -213,8 +231,9 @@
         /\.(?:pdf|pptx?|docx?)$/i.test(sourceName) && !/text\/html|application\/json/i.test(pdfBlobs.get(url)?.type || '')) {
       const suffix=sourceName.slice(sourceName.lastIndexOf('_')+1);
       if (suffix.replace(/\.[^.]+$/,'').trim()) {
+        const materialName=downloadIntent.materialName;
         downloadIntent=null;
-        anchor.download=suffix;anchor.dataset.vtopPdfBypass='true';
+        anchor.download=materialName ? materialFilename(materialName,sourceName) : suffix;anchor.dataset.vtopPdfBypass='true';
         nativeURLs.add(url);setTimeout(()=>nativeURLs.delete(url),10000);
         originalClick.call(anchor);return true;
       }
@@ -270,6 +289,8 @@
       return;
     }
     const control=(event.target as Partial<Element>).closest?.('button,a,input[type="button"],input[type="submit"],[role="button"]');
+    // Look up the marked control itself: it may be a bare onclick icon rather than a button or link.
+    const material = materialIntent((event.target as Partial<Element>).closest?.('[data-vtop-material-action]'));
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
       const anchor=(event.target as Partial<Element>).closest?.<HTMLAnchorElement>('a[href]');
       if (anchor && downloadAnchor(anchor)) { event.preventDefault(); event.stopImmediatePropagation(); return; }
@@ -286,7 +307,7 @@
     // Only a control that actually signals a document download can make a following opaque popup
     // previewable. Remembering every click misclassified ordinary VTOP popups (for example Student
     // Login) as downloads for ten seconds.
-    downloadIntent=control&&downloadHint(controlHint(control))?{time:Date.now(),name:contextFilename(control)}:null;
+    if (!material) downloadIntent=control&&downloadHint(controlHint(control))?{time:Date.now(),name:contextFilename(control)}:null;
     if (event.defaultPrevented || event.button !== 0) return;
     const anchor = (event.target as Partial<Element>).closest?.<HTMLAnchorElement>('a[href]');
     if (anchor && handleAnchor(anchor)) { event.preventDefault(); event.stopImmediatePropagation(); }
@@ -330,4 +351,5 @@
   document.addEventListener('submit',event=>{
     if (!event.defaultPrevented && handleForm(event.target as HTMLFormElement,event.submitter as HTMLButtonElement | HTMLInputElement | null)) {event.preventDefault();event.stopImmediatePropagation();}
   },true);
+
 })();

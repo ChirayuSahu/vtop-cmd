@@ -29,6 +29,7 @@ If the listing is still in review, download the signed `vtop-command-<version>.x
 - **Marks totals:** each course's marks table gets a total row, including marks already lost.
 - **CGPA calculator:** reads your grade history and current courses, and projects your GPA and CGPA from the grades you expect.
 - **Document viewer:** PDF, Word and PowerPoint files from VTOP open in a built-in viewer, rendered locally. Shift-click a link to download normally.
+- **Course materials:** separate Preview and Download buttons; both direct downloads and downloads from the preview use the Material Detail title with the original file extension.
 - **CAPTCHA autofill:** VTOP's image CAPTCHA is read on your device. You still sign in yourself.
 - **Late Hour Request preset:** saves your usual answers and fills them in. You review and submit the form yourself.
 - **Searchable dropdowns** in the extension's windows and on long VTOP forms.
