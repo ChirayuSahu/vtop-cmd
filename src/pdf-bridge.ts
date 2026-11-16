@@ -289,7 +289,8 @@
       return;
     }
     const control=(event.target as Partial<Element>).closest?.('button,a,input[type="button"],input[type="submit"],[role="button"]');
-    const material = materialIntent(control);
+    // Look up the marked control itself: it may be a bare onclick icon rather than a button or link.
+    const material = materialIntent((event.target as Partial<Element>).closest?.('[data-vtop-material-action]'));
     if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
       const anchor=(event.target as Partial<Element>).closest?.<HTMLAnchorElement>('a[href]');
       if (anchor && downloadAnchor(anchor)) { event.preventDefault(); event.stopImmediatePropagation(); return; }

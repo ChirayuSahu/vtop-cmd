@@ -554,10 +554,10 @@ test('Shift-click reuses the original completed course download URL',()=>{
 const materialButtons=host=>[...host.shadowRoot.querySelectorAll('button')];
 async function courseMaterial(page,{title='m1 - intro',header='thead',native='button',settings={}}={}){
  const {w}=page;
- w.document.body.innerHTML=`<table><${header}><tr><th>#</th><th>Course Detail</th><th>Material Detail</th><th>Uploaded By</th><th>Download</th></tr></${header}><tbody><tr><td>12</td><td>Fall Semester 2026-27<br>BITE314L - Multimedia Systems - TH</td><td class="material"><span></span><br><i>1</i> <span>(Document)</span></td><td>19725 - Faculty<br>21-07-2026</td><td class="action">${native==='button'?'<button type="button"><i class="bi bi-download"></i></button>':'<a href="/vtop/download/file"><i class="bi bi-download"></i></a>'}</td></tr></tbody></table>`;
+ w.document.body.innerHTML=`<table><${header}><tr><th>#</th><th>Course Detail</th><th>Material Detail</th><th>Uploaded By</th><th>Download</th></tr></${header}><tbody><tr><td>12</td><td>Fall Semester 2026-27<br>BITE314L - Multimedia Systems - TH</td><td class="material"><span></span><br><i>1</i> <span>(Document)</span></td><td>19725 - Faculty<br>21-07-2026</td><td class="action">${native==='button'?'<button type="button"><i class="bi bi-download"></i></button>':native==='icon'?'<i class="bi bi-download" onclick=""></i>':'<a href="/vtop/download/file"><i class="bi bi-download"></i></a>'}</td></tr></tbody></table>`;
  w.document.querySelector('.material span').textContent=title;
  const original=w.document.querySelector('.action').firstChild;
- if(native==='button')original.addEventListener('click',()=>w.open('/vtop/download/file'));
+ if(native!=='a')original.addEventListener('click',()=>w.open('/vtop/download/file'));
  if(!page.materialUI){
   page.materialUI=true;page.materialListeners=[];
   w.chrome={storage:{local:{get:async()=>settings},onChanged:{addListener:listener=>page.materialListeners.push(listener)}}};
@@ -706,6 +706,23 @@ test('native DOM clicks from the content world retain the material action',async
  controls.download.click();await pause();
  assert.equal(page.calls.length,1);assert.equal(page.downloads[0]?.name,'m1 - intro.pdf');
  assert.equal(page.messages.some(message=>message.kind==='ready'),false);page.dom.window.close();
+});
+
+test('material actions work when the native control is a bare onclick icon',async(t)=>{
+ for(const direct of [false,true]){
+  const page=bridge(),controls=await courseMaterial(page,{native:'icon'});
+  t.after(()=>page.dom.window.close());
+  (direct?controls.download:controls.preview).click();await pause();
+  assert.equal(page.calls.length,1);assert.equal(page.opens.length,0);
+  if(direct){
+   assert.equal(page.downloads[0]?.name,'m1 - intro.pdf');
+   assert.equal(page.messages.some(message=>message.kind==='loading'),false);
+  }else{
+   assert.equal(page.messages.find(message=>message.kind==='ready')?.filename,'m1 - intro.pdf');
+   assert.equal(page.downloads.length,0);
+  }
+  page.dom.window.close();
+ }
 });
 
 test('material POST helpers preserve authentication fields and send the request once',async(t)=>{
