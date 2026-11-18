@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  .viewer { position: absolute; left: 36px; top: 70px; width: 780px; height: 640px; border-radius: 20px; overflow: hidden; background: #0e131c; box-shadow: 0 40px 90px rgba(15,23,42,.25); }
+  .tool { display: flex; align-items: center; gap: 12px; padding: 14px 18px; background: #171d29; color: #97a4bb; font-size: 12px; border-bottom: 1px solid #2a3344; }
+  .tool .name { color: #edf1fa; font-weight: 600; font-size: 13px; }
+  .btn { border: 1px solid #2a3344; border-radius: 8px; padding: 5px 10px; }
+  .dl { background: #2f5fe0; color: #fff; border-color: #2f5fe0; }
+  .pages { padding: 26px 0; display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .page { width: 420px; height: 560px; background: #fff; border-radius: 4px; padding: 34px 38px; box-shadow: 0 10px 30px rgba(0,0,0,.35); }
+  .page .t { height: 16px; width: 62%; border-radius: 4px; background: #182438; }
+  .page .s { height: 9px; border-radius: 4px; background: #d6dbe4; margin-top: 11px; }
+  .fig { height: 120px; border-radius: 6px; background: linear-gradient(135deg, #e8eefc, #d6e0fa); margin: 22px 0; }
+  .badges { position: absolute; right: 26px; bottom: 26px; display: flex; gap: 8px; }
+  .badge { border-radius: 999px; background: #fff; padding: 7px 13px; font-size: 12px; font-weight: 600; box-shadow: 0 10px 24px rgba(0,0,0,.25); }
+</style>
+<div class="frame">
+  <div class="copy">
+    <div class="brand"><img src="../../../static/icons/logo.svg" alt="">VTOP Command</div>
+    <div class="eyebrow">Document viewer</div>
+    <h1>Course files open <span class="muted">right in VTOP.</span></h1>
+    <p class="lede"><b>PDF, Word and PowerPoint</b> files preview in a built-in viewer instead of piling up in Downloads. Zoom, jump to a page, or save the original.</p>
+    <p class="foot">Rendered on your device · Unofficial · Not affiliated with VIT</p>
+  </div>
+  <div class="stage">
+    <div class="viewer">
+      <div class="tool"><span class="name">Module 3 - Trees and Graphs.pdf</span><span style="margin-left:auto">Page 1 / 24</span><span class="btn">− 100% +</span><span class="btn">Fit width</span><span class="btn dl">Download</span></div>
+      <div class="pages">
+        <div class="page">
+          <div class="t"></div>
+          <div class="s" style="width:95%;margin-top:20px"></div><div class="s" style="width:88%"></div><div class="s" style="width:92%"></div><div class="s" style="width:70%"></div>
+          <div class="fig"></div>
+          <div class="s" style="width:90%"></div><div class="s" style="width:84%"></div><div class="s" style="width:94%"></div><div class="s" style="width:60%"></div><div class="s" style="width:88%"></div><div class="s" style="width:76%"></div>
+        </div>
+      </div>
+      <div class="badges"><span class="badge">.pdf</span><span class="badge">.docx / .doc</span><span class="badge">.pptx / .ppt</span></div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,61 @@
+/* Shared look for the store images: the extension's own palette (brand.js) and the website's fonts. */
+@font-face { font-family: Urbanist; font-weight: 500; src: url(../../../website/assets/Urbanist-Medium.ttf); }
+@font-face { font-family: Urbanist; font-weight: 600; src: url(../../../website/assets/Urbanist-SemiBold.ttf); }
+
+:root {
+  --ink: #111214; --muted: #6b7280; --line: #e7e8ec; --soft: #f5f5f4;
+  --accent: #2f5fe0; --accent-soft: #e8eefc; --sun: #f6cb3c;
+  --d-surface: #171d29; --d-page: #0e131c; --d-text: #edf1fa; --d-muted: #97a4bb; --d-line: #2a3344; --d-hover: #242f46; --d-accent: #a9beff;
+}
+* { box-sizing: border-box; margin: 0; }
+html, body { width: 1280px; height: 800px; overflow: hidden; }
+body { font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: #fff; }
+
+/* Layout: headline on the left, product on the right. */
+.frame { display: grid; grid-template-columns: 430px 1fr; height: 100%; }
+.copy { padding: 84px 0 0 72px; display: flex; flex-direction: column; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; }
+.brand img { width: 30px; height: 30px; border-radius: 8px; }
+.eyebrow { margin-top: 70px; font-size: 13px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+h1 { margin-top: 14px; font: 500 54px/1.02 Urbanist, sans-serif; letter-spacing: -.035em; }
+h1 .muted { color: #b6b9bf; }
+.lede { margin-top: 22px; font-size: 18px; color: var(--muted); max-width: 330px; }
+.lede b { color: var(--ink); font-weight: 600; }
+.foot { margin-top: auto; padding-bottom: 56px; font-size: 13px; color: #9a9ea6; }
+.stage { position: relative; background: linear-gradient(160deg, #eef2fb 0%, #f6f7f9 60%); border-left: 1px solid var(--line); overflow: hidden; }
+
+/* A browser window. */
+.window { position: absolute; border-radius: 16px; overflow: hidden; box-shadow: 0 40px 90px rgba(15, 23, 42, .18), 0 0 0 1px rgba(15, 23, 42, .06); background: #fff; }
+.bar { display: flex; align-items: center; gap: 7px; padding: 12px 16px; background: #f1f2f5; }
+.bar.dark { background: #1b2130; }
+.dot { width: 11px; height: 11px; border-radius: 50%; }
+.url { margin-left: 12px; flex: 1; padding: 6px 12px; border-radius: 8px; background: #fff; font-size: 12px; color: var(--muted); }
+.bar.dark .url { background: #262d3d; color: var(--d-muted); }
+
+/* A VTOP-like page skeleton. */
+.vtop { display: grid; grid-template-columns: 200px 1fr; gap: 18px; padding: 18px; height: 100%; }
+.side div { height: 12px; border-radius: 6px; background: #e3e7ee; margin-bottom: 13px; }
+.cardrow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.card { height: 74px; border-radius: 12px; background: #f3f5f9; }
+.lines div { height: 10px; border-radius: 5px; background: #e6e9ef; margin-top: 12px; }
+.dark .side div, .dark .lines div { background: #273042; }
+.dark .card { background: #1d2433; }
+
+/* The extension's command menu (matches content.ts). */
+.menu { position: absolute; border-radius: 20px; background: #fff; border: 1px solid var(--line); box-shadow: 0 30px 80px rgba(15, 23, 42, .25); overflow: hidden; }
+.menu header { display: flex; align-items: center; gap: 10px; padding: 18px 20px 10px; font-size: 11px; font-weight: 700; letter-spacing: 2px; color: var(--muted); }
+.menu header img { width: 18px; height: 18px; border-radius: 5px; }
+.menu header .sp { flex: 1; }
+.chip { border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; font-size: 11px; font-weight: 500; letter-spacing: 0; }
+.search { display: flex; align-items: center; gap: 12px; margin: 4px 20px 14px; font-size: 21px; }
+.search .glyph { color: var(--accent); font-size: 22px; }
+.caret { display: inline-block; width: 2px; height: 22px; background: var(--ink); vertical-align: -4px; margin-left: 1px; }
+.meta { display: flex; justify-content: space-between; padding: 9px 20px; border-top: 1px solid var(--line); font-size: 11px; color: var(--muted); letter-spacing: .5px; }
+.opt { display: flex; align-items: center; gap: 12px; margin: 0 10px; padding: 11px 12px; border-radius: 10px; }
+.opt.on { background: #f0f4fb; }
+.icon { display: grid; place-items: center; width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 9px; color: var(--muted); font-size: 13px; }
+.opt .t { font-size: 14px; font-weight: 550; }
+.opt .c { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.opt .go { margin-left: auto; color: var(--accent); }
+mark { background: none; color: var(--accent); font-weight: 650; }
+kbd { font: 600 12px -apple-system, sans-serif; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 7px; padding: 3px 7px; background: #fff; }

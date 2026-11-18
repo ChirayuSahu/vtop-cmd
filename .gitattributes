@@ -1,2 +1,4 @@
 # Keep the homepage out of the source archive submitted to Firefox Add-ons (npm run source).
 website/ export-ignore
+# Store listing materials are not part of the extension source.
+docs/chrome-web-store/ export-ignore

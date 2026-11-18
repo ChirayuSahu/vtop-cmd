@@ -391,6 +391,7 @@ async function Home() {
                     { label: "Releases", href: `${REPO_URL}/releases` },
                     { label: "Report an issue", href: `${REPO_URL}/issues` },
                     { label: "Source code", href: REPO_URL },
+                    { label: "Privacy", href: "/privacy" },
                   ],
                 },
               ].map((column) => (
