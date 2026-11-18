@@ -1,0 +1,67 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  .split { position: absolute; left: 36px; top: 90px; width: 780px; height: 600px; }
+  .half { position: absolute; inset: 0; }
+  .half.dark { clip-path: inset(0 0 0 46%); }
+  .seam { position: absolute; top: 0; bottom: 0; left: 46%; width: 2px; background: linear-gradient(to bottom, transparent, #a9beff, transparent); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 10px 9px; border-bottom: 1px solid #e7e8ec; }
+  th { font-size: 11px; color: #6b7280; font-weight: 600; background: #f6f7fa; }
+  .dark table th { background: #1d2433; color: #97a4bb; border-color: #2a3344; }
+  .dark table td { border-color: #2a3344; color: #edf1fa; }
+  .ok { color: #1f9d3a; font-weight: 600; } .bad { color: #d14343; font-weight: 600; }
+  .dark .ok { color: #6ee787; } .dark .bad { color: #ff99a8; }
+  .content { padding: 18px 22px; }
+  .h { font-weight: 600; font-size: 15px; margin-bottom: 12px; }
+  .dark .h { color: #edf1fa; }
+  .toggle { position: absolute; right: 18px; top: 58px; display: flex; align-items: center; gap: 8px; padding: 6px 7px 6px 12px; border-radius: 999px; background: rgba(0,0,0,.6); color: #fff; font-size: 12px; z-index: 5; }
+  .knob { width: 34px; height: 20px; border-radius: 999px; background: #2f5fe0; position: relative; }
+  .knob::after { content: ""; position: absolute; right: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; }
+</style>
+<div class="frame">
+  <div class="copy">
+    <div class="brand"><img src="../../../static/icons/logo.svg" alt="">VTOP Command</div>
+    <div class="eyebrow">Dark mode</div>
+    <h1>A real dark mode <span class="muted">for the whole portal.</span></h1>
+    <p class="lede">Every page, table and form, with <b>low-contrast text fixed</b> and status colours kept. One click in the menu turns it on.</p>
+    <p class="foot">Unofficial · Not affiliated with VIT</p>
+  </div>
+  <div class="stage">
+    <div class="split">
+      <div class="window half" style="position:absolute">
+        <div class="bar"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span><span class="url">vtop.vit.ac.in/vtop/content</span></div>
+        <div class="content">
+          <div class="h">Class Attendance · Fall Semester 2026-27</div>
+          <table>
+            <tr><th>Course</th><th>Type</th><th>Attended</th><th>Total</th><th>%</th><th>Status</th></tr>
+            <tr><td>Data Structures and Algorithms</td><td>Theory</td><td>31</td><td>38</td><td>82%</td><td class="ok">Can miss 3</td></tr>
+            <tr><td>Operating Systems</td><td>Theory</td><td>25</td><td>35</td><td>71%</td><td class="bad">Attend 5</td></tr>
+            <tr><td>Computer Networks</td><td>Lab</td><td>18</td><td>20</td><td>90%</td><td class="ok">Can miss 4</td></tr>
+            <tr><td>Database Systems</td><td>Theory</td><td>28</td><td>34</td><td>82%</td><td class="ok">Can miss 3</td></tr>
+            <tr><td>Software Engineering</td><td>Theory</td><td>22</td><td>29</td><td>76%</td><td class="ok">Can miss 0</td></tr>
+            <tr><td>Technical English</td><td>Theory</td><td>20</td><td>24</td><td>83%</td><td class="ok">Can miss 2</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="window half dark" style="position:absolute;background:#0e131c">
+        <div class="bar dark"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span><span class="url">vtop.vit.ac.in/vtop/content</span></div>
+        <div class="content">
+          <div class="h">Class Attendance · Fall Semester 2026-27</div>
+          <table>
+            <tr><th>Course</th><th>Type</th><th>Attended</th><th>Total</th><th>%</th><th>Status</th></tr>
+            <tr><td>Data Structures and Algorithms</td><td>Theory</td><td>31</td><td>38</td><td>82%</td><td class="ok">Can miss 3</td></tr>
+            <tr><td>Operating Systems</td><td>Theory</td><td>25</td><td>35</td><td>71%</td><td class="bad">Attend 5</td></tr>
+            <tr><td>Computer Networks</td><td>Lab</td><td>18</td><td>20</td><td>90%</td><td class="ok">Can miss 4</td></tr>
+            <tr><td>Database Systems</td><td>Theory</td><td>28</td><td>34</td><td>82%</td><td class="ok">Can miss 3</td></tr>
+            <tr><td>Software Engineering</td><td>Theory</td><td>22</td><td>29</td><td>76%</td><td class="ok">Can miss 0</td></tr>
+            <tr><td>Technical English</td><td>Theory</td><td>20</td><td>24</td><td>83%</td><td class="ok">Can miss 2</td></tr>
+          </table>
+        </div>
+        <div class="toggle">Dark mode <span class="knob"></span></div>
+      </div>
+      <div class="seam"></div>
+    </div>
+  </div>
+</div>

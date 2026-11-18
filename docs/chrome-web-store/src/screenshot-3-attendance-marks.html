@@ -1,0 +1,51 @@
+<!doctype html>
+<meta charset="utf-8">
+<link rel="stylesheet" href="base.css">
+<style>
+  .content { padding: 20px 24px; }
+  .h { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+  .sub { font-size: 12px; color: #6b7280; margin-bottom: 14px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: right; padding: 10px 9px; border-bottom: 1px solid #e7e8ec; }
+  th:first-child, td:first-child { text-align: left; }
+  th { font-size: 11px; color: #6b7280; font-weight: 600; background: #f6f7fa; }
+  tr.total td { background: #eef3fc; font-weight: 650; border-bottom: 0; }
+  .lost { color: #b42318; font-weight: 600; }
+  .callout { position: absolute; border-radius: 16px; background: #fff; box-shadow: 0 24px 60px rgba(15,23,42,.18), 0 0 0 1px rgba(15,23,42,.06); padding: 18px 20px; }
+  .big { font: 500 44px/1 Urbanist, sans-serif; letter-spacing: -.03em; }
+  .pill { display: inline-block; border-radius: 999px; padding: 3px 10px; font-size: 11px; font-weight: 600; }
+  .bars { display: flex; align-items: flex-end; gap: 6px; height: 64px; margin-top: 14px; }
+  .bars span { flex: 1; border-radius: 5px 5px 0 0; background: #d6e0fa; }
+</style>
+<div class="frame">
+  <div class="copy">
+    <div class="brand"><img src="../../../static/icons/logo.svg" alt="">VTOP Command</div>
+    <div class="eyebrow">Attendance &amp; marks</div>
+    <h1>Know exactly <span class="muted">where you stand.</span></h1>
+    <p class="lede">Each course shows <b>how many classes you can still miss</b> at 75%, and every marks table gets a <b>total row with marks already lost</b>.</p>
+    <p class="foot">Sample data shown · Unofficial · Not affiliated with VIT</p>
+  </div>
+  <div class="stage">
+    <div class="window" style="left:36px;top:110px;width:780px;height:470px">
+      <div class="bar"><span class="dot" style="background:#ff5f57"></span><span class="dot" style="background:#febc2e"></span><span class="dot" style="background:#28c840"></span><span class="url">vtop.vit.ac.in/vtop/content</span></div>
+      <div class="content">
+        <div class="h">Data Structures and Algorithms · Marks</div>
+        <div class="sub">Fall Semester 2026-27 · Theory</div>
+        <table>
+          <tr><th>Mark title</th><th>Max. mark</th><th>Weightage %</th><th>Scored</th><th>Weightage mark</th><th>Remark</th></tr>
+          <tr><td>Quiz 1</td><td>10</td><td>5</td><td>8.5</td><td>4.25</td><td></td></tr>
+          <tr><td>Continuous Assessment Test 1</td><td>50</td><td>15</td><td>40</td><td>12.00</td><td></td></tr>
+          <tr><td>Digital Assignment 1</td><td>10</td><td>10</td><td>9</td><td>9.00</td><td></td></tr>
+          <tr><td>Continuous Assessment Test 2</td><td>50</td><td>15</td><td>43</td><td>12.90</td><td></td></tr>
+          <tr class="total"><td>Total</td><td>120</td><td>45</td><td>100.5</td><td>38.15</td><td class="lost">6.85 marks lost</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="callout" style="left:540px;top:470px;width:250px">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600">Operating Systems <span class="pill" style="background:#fdecec;color:#b42318">below 75%</span></div>
+      <div class="big" style="margin-top:10px;color:#d14343">71%</div>
+      <div style="font-size:13px;color:#6b7280;margin-top:4px">Attend the <b style="color:#111214">next 5 classes</b> to reach 75%.</div>
+      <div class="bars"><span style="height:70%"></span><span style="height:52%"></span><span style="height:64%"></span><span style="height:40%"></span><span style="height:58%;background:#ff5f57"></span><span style="height:46%"></span></div>
+    </div>
+  </div>
+</div>
