@@ -14,9 +14,9 @@ If the listing is still in review, download the signed `vtop-command-<version>.x
 
 **Chrome / Brave**
 
-1. Download `vtop-command-<version>.zip` from the [latest release](https://github.com/ChirayuSahu/vtop-cmd/releases/latest) and unzip it.
-2. Open `chrome://extensions` (or `brave://extensions`) and turn on **Developer mode**.
-3. Click **Load unpacked** and select the unzipped folder.
+Install [VTOP Command from the Chrome Web Store](https://chromewebstore.google.com/detail/vtop-command/nakkjdlcdcghijdamfckggekaegnfbhb) and click **Add to Chrome**. It updates automatically. Brave and Edge can install from the same page.
+
+If you loaded the `.zip` unpacked before, remove that copy from `chrome://extensions` (or `brave://extensions`) so only the store version runs.
 
 ## Features
 
@@ -79,8 +79,8 @@ Tests use made-up data shaped like VTOP's markup; no account data is included.
 Pull requests must pass CI (checks, tests, both builds and `web-ext lint`) before merging into `main`. To release, bump the version in `static/manifest.json` and `package.json`, merge to `main`, then tag it:
 
 ```bash
-git tag v1.2.5 origin/main
-git push origin v1.2.5
+git tag v1.2.6 origin/main
+git push origin v1.2.6
 ```
 
 The release workflow builds and publishes the Chrome ZIP. Get the Firefox ZIP signed by Mozilla and attach the signed `.xpi` to the release afterwards.
