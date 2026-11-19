@@ -32,7 +32,7 @@ function Downloads({ chromeUrl, firefoxUrl }: { chromeUrl: string; firefoxUrl: s
         Get it for Firefox
       </Button>
       <Button href={chromeUrl}>
-        Download for Chrome <Arrow />
+        Get it for Chrome <Arrow />
       </Button>
     </div>
   );
@@ -96,10 +96,10 @@ async function Home() {
           </a>
         </nav>
         <a
-          href={`${REPO_URL}/releases/tag/v1.2.5`}
+          href={`${REPO_URL}/releases/tag/v1.2.6`}
           className="mx-auto mt-2 flex max-w-7xl items-center justify-between gap-3 rounded-xl bg-accent px-4 py-2 text-[13px] font-medium text-white shadow-sm transition-colors hover:bg-accent/95 focus-visible:outline-2 focus-visible:outline-offset-2"
         >
-          <span>Version 1.2.5 is live</span>
+          <span>Version 1.2.6 is live</span>
           <span>Release notes <span aria-hidden="true">↗</span></span>
         </a>
       </div>
@@ -308,20 +308,23 @@ async function Home() {
                 name: "Chrome & Brave",
                 steps: [
                   <>
-                    Download the{" "}
+                    Open VTOP Command on the{" "}
                     <a href={chromeUrl} className="font-medium text-accent hover:underline">
-                      .zip file
-                    </a>{" "}
-                    and unzip it.
+                      Chrome Web Store
+                    </a>
+                    .
                   </>,
                   <>
-                    Open <B>chrome://extensions</B> and turn on <B>Developer mode</B>.
+                    Click <B>Add to Chrome</B> and confirm.
                   </>,
-                  <>
-                    Click <B>Load unpacked</B> and select the unzipped folder.
-                  </>,
+                  <>It updates itself from then on.</>,
                 ],
-                note: null,
+                note: (
+                  <>
+                    Loaded the .zip unpacked before? Remove that copy from <B>chrome://extensions</B> first, so only
+                    the store version runs.
+                  </>
+                ),
               },
             ].map((browser, index) => (
               <Reveal key={browser.name} delay={index * 120} className="rounded-3xl border border-line p-6">
@@ -415,7 +418,7 @@ async function Home() {
 
           <div className="mx-auto grid max-w-lg grid-cols-2 gap-3 text-left lg:mx-0">
             {[
-              { name: "Chrome & Brave", action: "Download the .zip", url: chromeUrl },
+              { name: "Chrome & Brave", action: "Get it on Chrome Web Store", url: chromeUrl },
               { name: "Firefox & Zen", action: "Get it on Firefox Add-ons", url: firefoxUrl },
             ].map((download) => (
               <a
