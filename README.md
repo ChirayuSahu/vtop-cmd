@@ -4,6 +4,8 @@ A browser extension for VIT's VTOP portal. It adds a customizable keyboard short
 
 It runs only on `vtop.vit.ac.in/vtop/`, talks to no other server, and never submits anything on your behalf.
 
+**Available on the [Chrome Web Store](https://chromewebstore.google.com/detail/vtop-command/nakkjdlcdcghijdamfckggekaegnfbhb) and [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/vtop-cmd/).** Website: [vtop-cmd.chirayusahu.com](https://vtop-cmd.chirayusahu.com)
+
 ## Install
 
 **Firefox / Zen**
@@ -12,7 +14,7 @@ Install [VTOP Command from Firefox Add-ons](https://addons.mozilla.org/en-US/fir
 
 If the listing is still in review, download the signed `vtop-command-<version>.xpi` from the [latest release](https://github.com/ChirayuSahu/vtop-cmd/releases/latest), open `about:addons`, click the gear icon, choose **Install Add-on From File…** and select it.
 
-**Chrome / Brave**
+**Chrome / Brave / Edge**
 
 Install [VTOP Command from the Chrome Web Store](https://chromewebstore.google.com/detail/vtop-command/nakkjdlcdcghijdamfckggekaegnfbhb) and click **Add to Chrome**. It updates automatically. Brave and Edge can install from the same page.
 
