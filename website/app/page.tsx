@@ -96,10 +96,10 @@ async function Home() {
           </a>
         </nav>
         <a
-          href={`${REPO_URL}/releases/tag/v1.2.6`}
+          href={`${REPO_URL}/releases/tag/v1.2.7`}
           className="mx-auto mt-2 flex max-w-7xl items-center justify-between gap-3 rounded-xl bg-accent px-4 py-2 text-[13px] font-medium text-white shadow-sm transition-colors hover:bg-accent/95 focus-visible:outline-2 focus-visible:outline-offset-2"
         >
-          <span>Version 1.2.6 is live</span>
+          <span>Version 1.2.7 is live</span>
           <span>Release notes <span aria-hidden="true">↗</span></span>
         </a>
       </div>
