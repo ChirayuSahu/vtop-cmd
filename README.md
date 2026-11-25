@@ -2,7 +2,7 @@
 
 A browser extension for VIT's VTOP portal. It adds a customizable keyboard shortcut for the command menu (⌘K / Ctrl+K by default), a dark mode, and helpers for attendance, assignments, marks and CGPA.
 
-It runs only on `vtop.vit.ac.in/vtop/`, talks to no other server, and never submits anything on your behalf.
+It runs only on `vtop.vit.ac.in/vtop/`, talks to no other server, and never submits anything on your behalf. After an update it opens the website's [What's new](https://vtop-cmd.chirayusahu.com/whats-new) page once, so you can see what changed.
 
 **Available on the [Chrome Web Store](https://chromewebstore.google.com/detail/vtop-command/nakkjdlcdcghijdamfckggekaegnfbhb) and [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/vtop-cmd/).** Website: [vtop-cmd.chirayusahu.com](https://vtop-cmd.chirayusahu.com)
 
@@ -81,8 +81,8 @@ Tests use made-up data shaped like VTOP's markup; no account data is included.
 Pull requests must pass CI (checks, tests, both builds and `web-ext lint`) before merging into `main`. To release, bump the version in `static/manifest.json` and `package.json`, merge to `main`, then tag it:
 
 ```bash
-git tag v1.2.6 origin/main
-git push origin v1.2.6
+git tag v1.2.7 origin/main
+git push origin v1.2.7
 ```
 
 The release workflow builds and publishes the Chrome ZIP. Get the Firefox ZIP signed by Mozilla and attach the signed `.xpi` to the release afterwards.

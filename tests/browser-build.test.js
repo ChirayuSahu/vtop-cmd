@@ -42,9 +42,9 @@ test('Chrome manifest uses a service worker and preserves shared document viewer
 });
 test('Chrome service worker loads shared session cache and toolbar listeners without DOM APIs',()=>{
  const loaded=[],listeners=[];
- const chrome={runtime:{id:'test',onMessage:{addListener:fn=>listeners.push(fn)}},storage:{session:{}},action:{onClicked:{addListener:fn=>listeners.push(fn)}}};
+ const chrome={runtime:{id:'test',onMessage:{addListener:fn=>listeners.push(fn)},onInstalled:{addListener:fn=>listeners.push(fn)}},storage:{session:{}},action:{onClicked:{addListener:fn=>listeners.push(fn)}}};
  const context=vm.createContext({chrome});
  context.importScripts=(...files)=>{for(const file of files){loaded.push(file);vm.runInContext(fs.readFileSync(packaged(file),'utf8'),context);}};
  vm.runInContext(fs.readFileSync(packaged('extension-background.js'),'utf8'),context);
- assert.deepEqual(loaded,['navigation.js','command-history.js','deadline-cache.js','extension-action.js']);assert.equal(listeners.length,3);
+ assert.deepEqual(loaded,['navigation.js','command-history.js','deadline-cache.js','extension-action.js']);assert.equal(listeners.length,4);
 });
