@@ -7,7 +7,7 @@
   // Viewer frame → preview: lifecycle notices and forwarded keys, tagged with the frame's nonce.
   interface ViewerMessage { type?: 'viewer-ready'|'viewer-received'|'viewer-loaded'|'viewer-error'|'viewer-key'; nonce?: string; key?: string; code?: string; metaKey?: boolean; ctrlKey?: boolean; altKey?: boolean; shiftKey?: boolean }
   // pdf-bridge → preview on this window; `id` and `bytes` are checked before use.
-  interface BridgeMessage { source?: string; id?: unknown; kind?: 'loading'|'not-pdf'|'error'|'ready'; bytes?: unknown; filename?: unknown; previewName?: unknown; documentType?: string }
+  interface BridgeMessage { source?: string; id?: unknown; kind?: 'loading'|'progress'|'not-pdf'|'error'|'ready'; loaded?: unknown; total?: unknown; bytes?: unknown; filename?: unknown; previewName?: unknown; documentType?: string }
   // Either kind may arrive on the one listener, so every field is optional until checked.
   type IncomingMessage = Partial<ViewerMessage & BridgeMessage> | null | undefined;
   // Same surface, header and button language as the command menu (content.js).
@@ -99,6 +99,11 @@
     if(message.kind==='loading'){show(message.id);return;}
     if(message.id!==activeId)return;
     if(message.kind==='not-pdf'){close();return;}
+    if(message.kind==='progress'){
+      const loaded=Number(message.loaded),total=Number(message.total);
+      if(!frame&&Number.isFinite(loaded))status.textContent=total>0?`Loading document… ${Math.min(100,Math.floor(loaded/total*100))}%`:`Loading document… ${(loaded/1048576).toFixed(1)} MB`;
+      return;
+    }
     if(message.kind==='error'){status.textContent='Unable to load this document. Sign in again if needed, then retry the original link.';return;}
     if(message.kind!=='ready')return;
     const id=message.id;

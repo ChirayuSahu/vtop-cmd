@@ -30,7 +30,7 @@
   let sequence = 0;
   let bypassClick = false;
   let bypassTimer: ReturnType<typeof setTimeout> | undefined;
-  let downloadIntent: { time: number; name?: string; materialName?: string; saveOnly?: boolean } | null = null;
+  let downloadIntent: { time: number; name?: string; materialName?: string; saveOnly?: boolean; control?: Element } | null = null;
   const downloadHint = (value: string) => /\b(?:pdf|pptx?|powerpoint|presentation|slides?)\b|download|dwnld|curriculdown/i.test(value || '');
   function localURL(value: URLInput) {
     try {const url=new URL(value as string | URL,document.baseURI);return url.origin===location.origin&&url.pathname.startsWith('/vtop/');} catch {return false;}
@@ -41,10 +41,27 @@
   function materialIntent(control: Element | null | undefined) {
     const action = control?.getAttribute('data-vtop-material-action');
     const title = control?.getAttribute('data-vtop-material-title');
-    if (!title || (action !== 'preview' && action !== 'download')) return false;
+    if (!control || !title || (action !== 'preview' && action !== 'download')) return false;
     clearTimeout(bypassTimer); bypassClick = false;
-    downloadIntent = {time:Date.now(),materialName:filename(null,title),saveOnly:action==='download'};
+    downloadIntent = {time:Date.now(),materialName:filename(null,title),saveOnly:action==='download',control};
+    // The content script shows the transfer while this is set. VTOP's own handler runs during this
+    // click; if it didn't start a request the bridge took over, there is nothing to show.
+    control.setAttribute('data-vtop-material-busy',action);
+    setTimeout(() => { if (downloadIntent?.control === control) control.removeAttribute('data-vtop-material-busy'); },0);
     return true;
+  }
+  // Read a document while reporting how much has arrived, so a slow VTOP transfer isn't silent.
+  async function readBody(response: Response, report: (loaded: number, total: number) => void) {
+    if (!response.body) return response.blob();
+    const total = Number(response.headers.get('content-length')) || 0, reader = response.body.getReader(), chunks: BlobPart[] = [];
+    let loaded = 0;
+    report(0,total);
+    for (;;) {
+      const {done,value} = await reader.read();
+      if (done) break;
+      chunks.push(value); loaded += value.byteLength; report(loaded,total);
+    }
+    return new Blob(chunks,{type:response.headers.get('content-type') || ''});
   }
   function materialFilename(title: string, original: string) {
     const extension = original.match(/\.[a-z0-9]{1,10}$/i)?.[0] || '';
@@ -146,9 +163,19 @@
   async function preview(url: string, init?: RequestInit, suggestedName?: string, fallback?: () => void, source?: Blob, saveOnly = !!(pendingDownload() && downloadIntent?.saveOnly)) {
     const intentName = pendingDownload() ? downloadIntent?.name : undefined;
     const materialName = pendingDownload() ? downloadIntent?.materialName : undefined;
+    const control = pendingDownload() ? downloadIntent?.control : undefined;
     downloadIntent=null;
     const id = `pdf-${Date.now()}-${++sequence}`;
     if (!saveOnly) emit('loading',id);
+    let shown = -1;
+    const report = (loaded: number, total: number) => {
+      // Whole percentages (or 100 KB steps without a length) keep the messages few.
+      const step = total ? Math.floor(loaded / total * 100) : Math.floor(loaded / 102400);
+      if (step === shown) return;
+      shown = step;
+      control?.setAttribute('data-vtop-material-progress', total ? `${step}%` : `${(loaded / 1048576).toFixed(1)} MB`);
+      if (!saveOnly) emit('progress',id,{loaded,total});
+    };
     try {
       // VTOP has already fetched this blob. A course filename supplies both the name
       // and extension, so Shift-click can save immediately without inspecting its bytes.
@@ -160,7 +187,7 @@
       }
       const response = source ? null : await nativeFetch(url,{credentials:'same-origin',...init});
       if (response && !response.ok) throw new Error('The document could not be loaded. Your VTOP session may have expired.');
-      const blob = source || await response!.blob();
+      const blob = source || await readBody(response!,report);
       const header = new Uint8Array(await blob.slice(0,1024).arrayBuffer());
       const isPdf = String.fromCharCode(...header).includes('%PDF-');
       const contentType = response?.headers.get('content-type') || blob.type;
@@ -211,6 +238,9 @@
       if (fallback && !saveOnly) { emit('not-pdf',id); fallback(); return; }
       if (saveOnly) emit('loading',id);
       emit('error',id,{message:(error as Error).message || 'Unable to preview this document.'});
+    } finally {
+      control?.removeAttribute('data-vtop-material-progress');
+      control?.removeAttribute('data-vtop-material-busy');
     }
   }
   function handleAnchor(anchor: HTMLAnchorElement) {
@@ -232,6 +262,7 @@
       const suffix=sourceName.slice(sourceName.lastIndexOf('_')+1);
       if (suffix.replace(/\.[^.]+$/,'').trim()) {
         const materialName=downloadIntent.materialName;
+        downloadIntent.control?.removeAttribute('data-vtop-material-busy');
         downloadIntent=null;
         anchor.download=materialName ? materialFilename(materialName,sourceName) : suffix;anchor.dataset.vtopPdfBypass='true';
         nativeURLs.add(url);setTimeout(()=>nativeURLs.delete(url),10000);
