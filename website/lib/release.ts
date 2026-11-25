@@ -41,3 +41,32 @@ export async function getLatestRelease(): Promise<Release> {
     return fallback;
   }
 }
+
+export type ReleaseNotes = { version: string; name: string; publishedAt: string | null; html: string; url: string };
+
+// One release's notes as GitHub renders them (GitHub sanitizes this HTML). With no version, or a
+// version that has no release yet, this returns null and the page falls back to the latest release.
+export async function getReleaseNotes(version?: string): Promise<ReleaseNotes | null> {
+  "use cache";
+  cacheLife("hours");
+  if (version !== undefined && !/^\d+(?:\.\d+){1,3}$/.test(version)) return null;
+  const path = version ? `releases/tags/v${version}` : "releases/latest";
+  try {
+    const response = await fetch(`https://api.github.com/repos/ChirayuSahu/vtop-cmd/${path}`, {
+      headers: { Accept: "application/vnd.github.html+json" },
+    });
+    if (!response.ok) return null;
+    const release: { tag_name?: string; name?: string; published_at?: string; body_html?: string; html_url?: string } =
+      await response.json();
+    if (!release.tag_name || !release.body_html) return null;
+    return {
+      version: release.tag_name.replace(/^v/, ""),
+      name: release.name || release.tag_name,
+      publishedAt: release.published_at ?? null,
+      html: release.body_html,
+      url: release.html_url || `${REPO_URL}/releases/tag/${release.tag_name}`,
+    };
+  } catch {
+    return null;
+  }
+}

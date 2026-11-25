@@ -26,7 +26,7 @@ export default function PrivacyPage() {
       </Link>
 
       <h1 className="display mt-10 text-4xl sm:text-5xl">Privacy policy</h1>
-      <p className="mt-3 text-sm text-muted">Effective 3 November 2026</p>
+      <p className="mt-3 text-sm text-muted">Effective 25 November 2026</p>
 
       <div className="mt-10 space-y-10 text-[15px] leading-relaxed text-ink/85">
         <section>
@@ -36,7 +36,8 @@ export default function PrivacyPage() {
           </p>
           <p className="mt-4 font-medium text-ink">
             In short: the extension does not collect, sell or share your data. Everything it saves stays in your
-            browser, and the only server it talks to is VTOP itself.
+            browser, and the only server it talks to is VTOP itself, apart from opening this site&apos;s What&apos;s new
+            page once after an update.
           </p>
         </section>
 
@@ -57,6 +58,13 @@ export default function PrivacyPage() {
               course&apos;s assignment dashboard), sent to VTOP with your existing sign-in.
             </li>
             <li>No data is sent to the developers or to any other server. There are no analytics, ads or trackers in the extension.</li>
+            <li>
+              After the extension updates, it opens this website&apos;s{" "}
+              <Link href="/whats-new" className="font-medium text-accent hover:underline">
+                What&apos;s new
+              </Link>{" "}
+              page once in a new tab. The address carries only the new version number.
+            </li>
             <li>No remote code is loaded; everything the extension runs is included in the package you install.</li>
           </ul>
         </section>

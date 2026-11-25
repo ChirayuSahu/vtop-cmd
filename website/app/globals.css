@@ -448,3 +448,25 @@ body {
     animation: none;
   }
 }
+
+/* GitHub-rendered release notes on /whats-new. */
+.release-notes {
+  font-size: 15px;
+  line-height: 1.7;
+  color: color-mix(in srgb, var(--ink) 85%, transparent);
+}
+.release-notes h2 {
+  font-family: var(--font-display);
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--ink);
+  margin: 2.5rem 0 0.75rem;
+}
+.release-notes h2:first-child { margin-top: 0; }
+.release-notes p { margin: 0.75rem 0; }
+.release-notes ul { list-style: disc; padding-left: 1.25rem; margin: 0.75rem 0; }
+.release-notes li { margin: 0.4rem 0; }
+.release-notes a { color: var(--accent); font-weight: 500; }
+.release-notes a:hover { text-decoration: underline; }
+.release-notes strong { color: var(--ink); font-weight: 600; }
+.release-notes code { font-family: var(--font-mono); font-size: 0.85em; background: var(--soft); border-radius: 4px; padding: 0.1em 0.35em; }
