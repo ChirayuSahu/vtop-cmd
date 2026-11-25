@@ -334,6 +334,40 @@
   // Course-material UI belongs to the content script; the MAIN-world bridge only
   // reads the short-lived action/title attributes on VTOP's original control.
   const materialControls = new WeakMap<HTMLElement, HTMLSpanElement>(), materialHosts = new Set<HTMLSpanElement>();
+  const materialBusy = (native: HTMLElement) => native.hasAttribute('data-vtop-material-busy');
+  // Download first, then Preview (an eye); each keeps its full name for screen readers and as a tooltip.
+  const materialActions = [
+    {action:'download', label:'Download', icon:'<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2.5v7.5M4.75 7 8 10.25 11.25 7M3 12.75h10"/></svg>'},
+    {action:'preview', label:'Preview', icon:'<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8Z"/><circle cx="8" cy="8" r="2"/></svg>'},
+  ] as const;
+  const materialLabel = (button: HTMLButtonElement) => button.dataset.action === 'download' ? 'Download' : 'Preview';
+  // While the bridge fetches a material, its buttons show progress and ignore further clicks,
+  // so a slow VTOP transfer is visible and never started twice.
+  function trackMaterial(native: HTMLElement, host: HTMLSpanElement, clicked: HTMLButtonElement) {
+    const buttons = [...host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button')];
+    const verb = clicked.dataset.action === 'download' ? 'Downloading' : 'Opening';
+    const icon = [...clicked.childNodes].map(node => node.cloneNode(true));
+    const render = () => {
+      if (!materialBusy(native) || !native.isConnected) {
+        observer.disconnect();
+        clicked.replaceChildren(...icon);clicked.title = materialLabel(clicked);
+        for (const button of buttons) {
+          button.removeAttribute('aria-busy');
+          button.disabled = native.matches(':disabled,[aria-disabled="true"]');
+        }
+        return;
+      }
+      // The icon gives way to how much has arrived (a percentage, or MB without a known size).
+      const progress = native.getAttribute('data-vtop-material-progress');
+      for (const button of buttons) button.disabled = true;
+      clicked.setAttribute('aria-busy','true');
+      clicked.textContent = progress || '…';
+      clicked.title = progress ? `${verb} ${progress}` : `${verb}…`;
+    };
+    const observer = new MutationObserver(render);
+    observer.observe(native,{attributes:true,attributeFilter:['data-vtop-material-busy','data-vtop-material-progress']});
+    render();
+  }
   let materialTheme: VtopTheme = 'light', materialsDirty = false;
   function setMaterialTheme(value: unknown) {
     materialTheme = ['light','dark','oled','blue'].includes(String(value)) ? value as VtopTheme : 'light';
@@ -374,18 +408,20 @@
             :host([data-theme="dark"]){${tokens.themes.dark};color-scheme:dark}
             :host([data-theme="oled"]){${tokens.themes.oled};color-scheme:dark}
             :host([data-theme="blue"]){${tokens.themes.blue};color-scheme:dark}
-            .actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-            button{font:inherit;font-size:12px;min-height:32px;padding:5px 9px;border:1px solid var(--line);border-radius:6px;color:var(--text);background:var(--surface);cursor:pointer;white-space:nowrap}
+            .actions{display:flex;gap:6px;align-items:center}
+            button{display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;font:inherit;font-size:11px;min-width:32px;height:32px;padding:0 6px;border:1px solid var(--line);border-radius:6px;color:var(--text);background:var(--surface);cursor:pointer;white-space:nowrap}
+            svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
             button:hover{background:var(--hover)}button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-            button:disabled{opacity:.5;cursor:default}
-          </style><span class="actions" role="group" aria-label="Course material actions"><button type="button" data-action="preview">Preview</button><button type="button" data-action="download">Download</button></span>`);
+            button:disabled{opacity:.5;cursor:default}button[aria-busy="true"]{opacity:1;font-variant-numeric:tabular-nums}
+          </style><span class="actions" role="group" aria-label="Course material actions">${materialActions.map(({action,label,icon}) => `<button type="button" data-action="${action}" title="${label}">${icon}</button>`).join('')}</span>`);
           for (const button of shadow.querySelectorAll<HTMLButtonElement>('button')) button.addEventListener('click',event => {
             event.preventDefault(); event.stopPropagation();
             const currentTitle = materialTitle(native.closest('tr')?.cells[materialIndex]);
-            if (!currentTitle || !native.isConnected || native.matches(':disabled,[aria-disabled="true"]')) return;
+            if (!currentTitle || !native.isConnected || materialBusy(native) || native.matches(':disabled,[aria-disabled="true"]')) return;
             native.dataset.vtopMaterialTitle = currentTitle;
             native.dataset.vtopMaterialAction = event.shiftKey ? 'download' : button.dataset.action;
             try { native.click(); } finally { delete native.dataset.vtopMaterialAction; }
+            if (materialBusy(native)) trackMaterial(native,host!,button);
           });
           native.hidden = true; native.style.setProperty('display','none','important');
           native.setAttribute('data-vtop-material-original','true');
@@ -394,9 +430,9 @@
         materialHosts.add(host); host.dataset.theme = materialTheme;
         native.dataset.vtopMaterialTitle = title;
         for (const button of host.shadowRoot!.querySelectorAll<HTMLButtonElement>('button')) {
-          const label = `${button.textContent} ${title}`;
+          const label = `${materialLabel(button)} ${title}`;
           if (button.getAttribute('aria-label') !== label) button.setAttribute('aria-label',label);
-          button.disabled = native.matches(':disabled,[aria-disabled="true"]');
+          button.disabled = materialBusy(native) || native.matches(':disabled,[aria-disabled="true"]');
         }
         if (host.parentElement !== cell) native.after(host);
       }

@@ -10,7 +10,7 @@ function bridge({body='%PDF-1.4\nmock',type='application/pdf',disposition="attac
  const dom=new JSDOM('<!doctype html><html><body></body></html>',{runScripts:'outside-only',url:'https://vtop.vit.ac.in/vtop/content'}),w=dom.window;
  const calls=[],messages=[],opens=[],downloads=[];
  let blobNumber=0;
- w.Blob=Blob;w.fetch=async(url,init)=>{calls.push({url,init});return{ok,blob:async()=>new Blob([body],{type}),headers:{get:name=>name==='content-type'?type:name==='content-disposition'?disposition:null}};};
+ w.Blob=Blob;w.fetch=async(url,init)=>{calls.push({url,init});if(w.__respond)return w.__respond(url,init);return{ok,blob:async()=>new Blob([body],{type}),headers:{get:name=>name==='content-type'?type:name==='content-disposition'?disposition:null}};};
  w.URL.createObjectURL=()=>`blob:https://vtop.vit.ac.in/${++blobNumber}`;w.URL.revokeObjectURL=()=>{};
  w.open=(...args)=>opens.push(args);
  w.HTMLAnchorElement.prototype.click=function(){downloads.push({href:this.href,name:this.download});};
@@ -554,10 +554,15 @@ test('Shift-click reuses the original completed course download URL',()=>{
 const materialButtons=host=>[...host.shadowRoot.querySelectorAll('button')];
 async function courseMaterial(page,{title='m1 - intro',header='thead',native='button',settings={}}={}){
  const {w}=page;
- w.document.body.innerHTML=`<table><${header}><tr><th>#</th><th>Course Detail</th><th>Material Detail</th><th>Uploaded By</th><th>Download</th></tr></${header}><tbody><tr><td>12</td><td>Fall Semester 2026-27<br>BITE314L - Multimedia Systems - TH</td><td class="material"><span></span><br><i>1</i> <span>(Document)</span></td><td>19725 - Faculty<br>21-07-2026</td><td class="action">${native==='button'?'<button type="button"><i class="bi bi-download"></i></button>':native==='icon'?'<i class="bi bi-download" onclick=""></i>':'<a href="/vtop/download/file"><i class="bi bi-download"></i></a>'}</td></tr></tbody></table>`;
+ w.document.body.innerHTML=`<table><${header}><tr><th>#</th><th>Course Detail</th><th>Material Detail</th><th>Uploaded By</th><th>Download</th></tr></${header}><tbody><tr><td>12</td><td>Fall Semester 2026-27<br>BITE314L - Multimedia Systems - TH</td><td class="material"><span></span><br><i>1</i> <span>(Document)</span></td><td>19725 - Faculty<br>21-07-2026</td><td class="action">${native==='vtop'?'<button type="button" name="downloadmat" class="btn btn-sm download-btn" title="Download Material" data-fileid="2026040913"><i class="bi bi-download"></i></button>':native==='button'?'<button type="button"><i class="bi bi-download"></i></button>':native==='icon'?'<i class="bi bi-download" onclick=""></i>':'<a href="/vtop/download/file"><i class="bi bi-download"></i></a>'}</td></tr></tbody></table>`;
  w.document.querySelector('.material span').textContent=title;
  const original=w.document.querySelector('.action').firstChild;
- if(native!=='a')original.addEventListener('click',()=>w.open('/vtop/download/file'));
+ if(native==='vtop'){
+  // The real Course Page: the button fills a hidden POST form and submits it.
+  const form=w.document.createElement('form');form.id='courseMaterialstudentfileDown';form.method='post';form.action='/vtop/downloadCourseMaterialFacultyPdf';
+  form.innerHTML='<input type="hidden" name="_csrf" value="test-only"><input type="hidden" name="fileId" id="fileId">';w.document.body.append(form);
+  original.addEventListener('click',function(){w.document.getElementById('fileId').value=this.dataset.fileid;form.submit();});
+ }else if(native!=='a')original.addEventListener('click',()=>w.open('/vtop/download/file'));
  if(!page.materialUI){
   page.materialUI=true;page.materialListeners=[];
   w.chrome={storage:{local:{get:async()=>settings},onChanged:{addListener:listener=>page.materialListeners.push(listener)}}};
@@ -566,10 +571,12 @@ async function courseMaterial(page,{title='m1 - intro',header='thead',native='bu
  await new Promise(resolve=>setTimeout(resolve,200));
  const actions=w.document.querySelector('[data-vtop-material-actions]');
  assert.ok(actions);const buttons=materialButtons(actions);
- assert.deepEqual(buttons.map(button=>button.textContent),['Preview','Download']);
- assert.deepEqual(buttons.map(button=>button.getAttribute('aria-label')),[`Preview ${title}`,`Download ${title}`]);
+ // Download comes first, then the eye; both are icons named for screen readers and tooltips.
+ assert.deepEqual(buttons.map(button=>button.dataset.action),['download','preview']);
+ assert.deepEqual(buttons.map(button=>[button.textContent.trim(),!!button.querySelector('svg'),button.title]),[['',true,'Download'],['',true,'Preview']]);
+ assert.deepEqual(buttons.map(button=>button.getAttribute('aria-label')),[`Download ${title}`,`Preview ${title}`]);
  assert.equal(original.dataset.vtopMaterialOriginal,'true');
- return{original,actions,preview:buttons[0],download:buttons[1]};
+ return{original,actions,download:buttons[0],preview:buttons[1]};
 }
 
 test('course material actions use Material Detail for direct and preview downloads across file types',async()=>{
@@ -621,7 +628,7 @@ test('material titles override the fast save path for delayed revoked VTOP blobs
  await new Promise(resolve=>setTimeout(resolve,200));
  // The replacement row gets a fresh pair bound to the new original control.
  assert.equal(page.w.document.querySelectorAll('[data-vtop-material-actions]').length,1);
- materialButtons(page.w.document.querySelector('[data-vtop-material-actions]'))[1].click();await pause();
+ materialButtons(page.w.document.querySelector('[data-vtop-material-actions]'))[0].click();await pause();
  assert.deepEqual(page.downloads,[{href:blobUrl,name:'m1 - intro.pdf'}]);
  assert.equal(reads,0);assert.equal(page.calls.length,0);assert.equal(page.messages.length,0);page.dom.window.close();
 });
@@ -634,7 +641,7 @@ test('material controls stay unique after redraws and use the current title',asy
  controls.download.click();await pause();assert.equal(page.downloads[0]?.name,'audio.pdf');
  await courseMaterial(page,{title:'sound'});
  assert.equal(page.w.document.querySelectorAll('[data-vtop-material-actions]').length,1);
- materialButtons(page.w.document.querySelector('[data-vtop-material-actions]'))[1].click();await pause();
+ materialButtons(page.w.document.querySelector('[data-vtop-material-actions]'))[0].click();await pause();
  assert.equal(page.downloads[1]?.name,'sound.pdf');page.dom.window.close();
 });
 
@@ -723,6 +730,74 @@ test('material actions work when the native control is a bare onclick icon',asyn
   }
   page.dom.window.close();
  }
+});
+
+// A response whose body arrives in chunks the test releases one at a time, like a slow VTOP transfer.
+function slowResponse(w,chunks,{type='application/octet-stream',length=true}={}){
+ let release;const queue=[...chunks];
+ const body=new ReadableStream({pull(controller){return new Promise(resolve=>{release=()=>{const next=queue.shift();if(next===undefined)controller.close();else controller.enqueue(new TextEncoder().encode(next));resolve();};});}});
+ const size=chunks.join('').length;
+ return{response:{ok:true,body,headers:{get:name=>name==='content-type'?type:name==='content-length'&&length?String(size):name==='content-disposition'?'attachment; filename="FALLSEM2026-27_VL_BITE314L_00100_TH_2026-11-05_Module-8.pdf"':null}},step:async()=>{while(!release)await new Promise(resolve=>setTimeout(resolve,5));const go=release;release=null;go();await pause();}};
+}
+
+test('Course Page downloads stream with progress, lock the row and post once',async(t)=>{
+ const page=bridge();t.after(()=>page.dom.window.close());
+ const controls=await courseMaterial(page,{native:'vtop'});
+ const slow=slowResponse(page.w,['%PDF-1.4 ','first half ','second half']);
+ page.w.__respond=()=>slow.response;
+ controls.download.click();await pause();
+ assert.equal(page.calls.length,1);assert.equal(page.calls[0].init.method,'POST');
+ assert.equal(page.calls[0].init.body.get('fileId'),'2026040913');
+ assert.equal(controls.download.disabled,true);assert.equal(controls.preview.disabled,true);
+ assert.equal(controls.download.getAttribute('aria-busy'),'true');assert.match(controls.download.title,/^Downloading/);
+ // More clicks while it runs never start a second transfer.
+ controls.download.click();controls.preview.click();await pause();
+ assert.equal(page.calls.length,1);
+ await slow.step();
+ assert.match(controls.download.textContent,/^\d+%$/);assert.match(controls.download.title,/^Downloading \d+%$/);
+ const early=controls.download.textContent;
+ await slow.step();await slow.step();
+ assert.notEqual(controls.download.textContent,early);
+ assert.equal(page.downloads.length,0,'nothing is saved before the whole file arrives');
+ await slow.step();
+ assert.deepEqual(page.downloads.map(item=>item.name),['m1 - intro.pdf']);
+ assert.equal(page.messages.some(message=>message.kind==='loading'),false);
+ assert.equal(controls.download.textContent.trim(),'');assert.ok(controls.download.querySelector('svg'));assert.equal(controls.download.title,'Download');assert.equal(controls.download.hasAttribute('aria-busy'),false);assert.equal(controls.download.disabled,false);
+ assert.equal(controls.preview.disabled,false);
+ assert.equal(controls.original.hasAttribute('data-vtop-material-busy'),false);
+ assert.equal(controls.original.hasAttribute('data-vtop-material-progress'),false);
+});
+
+test('Course Page previews report load progress to the viewer and unlock afterwards',async(t)=>{
+ const page=bridge();t.after(()=>page.dom.window.close());
+ const controls=await courseMaterial(page,{native:'vtop'});
+ const slow=slowResponse(page.w,['%PDF-1.4 ','rest'],{type:'application/pdf',length:false});
+ page.w.__respond=()=>slow.response;
+ controls.preview.click();await pause();
+ assert.match(controls.preview.title,/^Opening/);
+ await slow.step();await slow.step();
+ const progress=page.messages.filter(message=>message.kind==='progress');
+ assert.ok(progress.length>=1);assert.equal(progress.at(-1).total,0,"no Content-Length reports bytes, not a percentage");
+ await slow.step();
+ assert.equal(page.messages.find(message=>message.kind==='ready')?.filename,'m1 - intro.pdf');
+ assert.ok(controls.preview.querySelector('svg'));assert.equal(controls.preview.title,'Preview');assert.equal(controls.download.disabled,false);
+});
+
+test('the viewer shows how much of a slow document has arrived',async(t)=>{
+ const viewer=previewWindow();t.after(()=>viewer.dom.window.close());
+ const status=viewer.shadow.querySelector('.status');
+ viewer.send('pdf-1-1','loading');assert.equal(status.textContent,'Loading document…');
+ viewer.send('pdf-1-1','progress',{loaded:512,total:2048});assert.equal(status.textContent,'Loading document… 25%');
+ viewer.send('pdf-1-1','progress',{loaded:3*1048576,total:0});assert.equal(status.textContent,'Loading document… 3.0 MB');
+ viewer.send('pdf-9-9','progress',{loaded:2048,total:2048});assert.equal(status.textContent,'Loading document… 3.0 MB','other documents are ignored');
+});
+
+test('a failed Course Page download unlocks its buttons',async(t)=>{
+ const page=bridge({ok:false});t.after(()=>page.dom.window.close());
+ const controls=await courseMaterial(page,{native:'vtop'});
+ controls.download.click();await pause();
+ assert.ok(page.messages.some(message=>message.kind==='error'));
+ assert.equal(controls.download.textContent.trim(),'');assert.ok(controls.download.querySelector('svg'));assert.equal(controls.download.title,'Download');assert.equal(controls.download.hasAttribute('aria-busy'),false);assert.equal(controls.download.disabled,false);
 });
 
 test('material POST helpers preserve authentication fields and send the request once',async(t)=>{
