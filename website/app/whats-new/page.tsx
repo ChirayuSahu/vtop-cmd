@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
-import { Logo } from "@/components/mocks";
+import { SiteHeader } from "@/components/site-header";
 import { getReleaseNotes, REPO_URL } from "@/lib/release";
 
 export const metadata: Metadata = {
@@ -16,14 +15,14 @@ type Search = Promise<{ v?: string | string[] }>;
 // the notes stream in after the release lookup.
 export default function WhatsNewPage({ searchParams }: { searchParams: Search }) {
   return (
-    <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-16 sm:px-6 sm:py-24">
-      <Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold">
-        <Logo size={22} /> VTOP Command
-      </Link>
-      <Suspense fallback={<h1 className="display mt-10 text-4xl text-muted sm:text-5xl">What&apos;s new</h1>}>
-        <Notes searchParams={searchParams} />
-      </Suspense>
-    </main>
+    <>
+      <SiteHeader />
+      <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-32 pb-16 sm:px-6 sm:pb-24">
+        <Suspense fallback={<h1 className="display mt-2 text-4xl text-muted sm:text-5xl">What&apos;s new</h1>}>
+          <Notes searchParams={searchParams} />
+        </Suspense>
+      </main>
+    </>
   );
 }
 
@@ -38,7 +37,7 @@ async function Notes({ searchParams }: { searchParams: Search }) {
 
   return (
     <>
-      <p className="mt-10 text-sm font-medium text-accent">{updated ? "You're up to date" : "Latest release"}</p>
+      <p className="text-sm font-medium text-accent">{updated ? "You're up to date" : "Latest release"}</p>
       <h1 className="display mt-2 text-4xl sm:text-5xl">
         {notes ? `What's new in ${notes.version}` : "What's new"}
       </h1>

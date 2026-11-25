@@ -1,5 +1,6 @@
 import { AttendanceCard, ShortcutKeys, TypingMenu } from "@/components/live-cards";
 import { Arrow, B, IconPill, Logo } from "@/components/mocks";
+import { SiteHeader } from "@/components/site-header";
 import { OnDevice, RequestQueue, YouSubmit } from "@/components/safety";
 import { FeatureShowcase } from "@/components/showcase";
 import { CountUp, Reveal, RevealText } from "@/components/motion";
@@ -79,22 +80,7 @@ async function Home() {
   return (
     <div className="flex flex-1 flex-col overflow-x-clip">
       <StructuredData version={version} chromeUrl={chromeUrl} firefoxUrl={firefoxUrl} />
-      <div className="fixed inset-x-0 top-3 z-50 px-3">
-        <nav aria-label="Main" className="mx-auto flex max-w-7xl items-center justify-between rounded-2xl bg-ink/95 py-2 pr-2 pl-4 text-white shadow-lg backdrop-blur">
-          <a href="#" aria-label="VTOP Command, back to top" className="flex items-center gap-2 text-sm font-semibold">
-            <Logo size={22} />
-            VTOP Command
-          </a>
-          <div className="hidden items-center gap-7 text-[13px] text-white/70 md:flex">
-            <a href="#features" className="transition-colors hover:text-white">Features</a>
-            <a href="#safety" className="transition-colors hover:text-white">Safety</a>
-            <a href="#install" className="transition-colors hover:text-white">Install</a>
-            <a href={REPO_URL} className="transition-colors hover:text-white">GitHub</a>
-          </div>
-          <a href="#download" className="btn btn-default btn-compact text-[13px]">
-            <span className="btn-face h-[30px] px-4">Download</span>
-          </a>
-        </nav>
+      <SiteHeader home>
         <a
           href={`${REPO_URL}/releases/tag/v1.2.7`}
           className="mx-auto mt-2 flex max-w-7xl items-center justify-between gap-3 rounded-xl bg-accent px-4 py-2 text-[13px] font-medium text-white shadow-sm transition-colors hover:bg-accent/95 focus-visible:outline-2 focus-visible:outline-offset-2"
@@ -102,7 +88,7 @@ async function Home() {
           <span>Version 1.2.7 is live</span>
           <span>Release notes <span aria-hidden="true">↗</span></span>
         </a>
-      </div>
+      </SiteHeader>
 
       <main className="flex-1">
         {/* Hero */}
